@@ -8,13 +8,16 @@
     "start": "next start",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx prisma/seed.ts",
+    "export:tcx": "tsx scripts/export-tcx.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6",
+    "fast-xml-parser": "^5.7.2",
     "next": "^16",
     "react": "^19",
     "react-dom": "^19",
