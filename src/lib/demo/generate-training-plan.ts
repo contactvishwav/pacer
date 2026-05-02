@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-export const DEMO_VERSION = '1.0.0'
+export const DEMO_VERSION = '1.1.0'
 
 // Fixed reference date — must NOT use new Date() so output is always identical.
 // All activity dates are computed backwards from this Saturday.
@@ -338,8 +338,6 @@ function buildActivity(spec: WorkoutSpec): ActivityData {
     avgHr   = 157              // fixed: >145+10 = exceeds easy ceiling by 12
   }
 
-  const durationSeconds  = Math.round((distKm * 1000 / avgPace) * avgPace) // distKm * avgPace
-  // More precisely:
   const durationSec = Math.round(distKm * avgPace)
   const movingTime  = Math.round(durationSec * jitterF(0.99, 0.005))
   const elevation   = Math.round(distKm * jitterF(2.5, 1.0))
@@ -570,12 +568,14 @@ function computeWeeklySummaries(
     atl = atl * EWA_ATL + avgDailyLoad * (1 - EWA_ATL)
     const tsb = ctl - atl
 
-    // Gabbett ACWR: acute (this week) / average of up to 4 prior weeks
+    // Gabbett ACWR: acute (this week) / rolling 4-week chronic average.
+    // Requires a minimum of 4 prior weeks before the ratio is meaningful —
+    // fewer weeks produces a volatile denominator and false spike signals.
+    // Weeks 1–4 return 1.0 (neutral) because there is no stable chronic baseline.
     const priorLoads = weeklyLoads.slice(Math.max(0, weeklyLoads.length - 5), weeklyLoads.length - 1)
-    const chronic = priorLoads.length > 0
-      ? priorLoads.reduce((s, l) => s + l, 0) / priorLoads.length
-      : totalLoad
-    const acwr = chronic > 0 ? totalLoad / chronic : 1.0
+    const acwr = priorLoads.length >= 4
+      ? totalLoad / (priorLoads.reduce((s, l) => s + l, 0) / priorLoads.length)
+      : 1.0
 
     const rationale = phaseRationale(def.phase, def.weekNum, acwr)
 
