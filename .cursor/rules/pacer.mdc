@@ -1,0 +1,50 @@
+---
+description: Pacer project rules for Cursor — frontend focus, backend read-only
+globs: ["src/**/*.tsx", "src/**/*.ts", "src/**/*.css"]
+---
+
+# Pacer — Cursor rules
+
+## Always read first
+
+Before making any change, read `AGENT_GUIDELINES.md` at the project root. It is the authoritative source for product, architecture, and quality decisions.
+
+## Frontend responsibilities
+
+Cursor's primary role in this project is:
+
+- UX implementation and visual polish
+- Loading states, empty states, and error states on every page
+- Responsiveness and layout
+- Consuming API routes cleanly
+- Dark-first premium fitness/AI aesthetic
+
+The dashboard must visibly answer five questions: where am I in training, am I at risk, am I on track for my race, what should I do this week, what should I ask the coach.
+
+## Do not put backend logic in components
+
+Never write intelligence calculations, ACWR math, Riegel formula, periodization detection, or workout classification logic inside React components. These belong in `src/lib` and are exposed via API routes. Components fetch from routes; they do not compute signals.
+
+## API consumption pattern
+
+Fetch from the relevant API route. Handle loading, error, and empty states explicitly. Do not call Prisma, `src/lib/db`, or `src/lib/intelligence` directly from component files.
+
+## Do not edit backend domain logic unless explicitly asked
+
+Files under `src/lib/intelligence`, `src/lib/coach`, `src/lib/demo`, `src/lib/db`, and `src/lib/schemas` are backend domain logic. Do not modify them to make a frontend change work. If a component needs different data, ask for an API route change instead.
+
+## Loading / empty / error states
+
+Every page must handle:
+
+- **Loading**: skeleton or spinner while data is in flight
+- **Empty**: zero-state message when no data exists yet (e.g., before seeding)
+- **Error**: user-readable message when a fetch fails; never show raw error objects
+
+## Injury-risk language
+
+Any injury-risk UI copy must use: "risk signal", "training-load spike", "caution range", "higher-risk pattern". No medical claims.
+
+## Strava
+
+Do not add Strava UI until the core product is complete and working from seeded data. Strava is optional.
