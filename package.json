@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "seed": "tsx prisma/seed.ts",
-    "export:tcx": "tsx scripts/export-tcx.ts"
+    "export:tcx": "tsx scripts/export-tcx.ts",
+    "validate:seed": "tsx scripts/validate-seed.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
