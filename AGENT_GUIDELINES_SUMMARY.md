@@ -1,0 +1,24 @@
+# AGENT_GUIDELINES_SUMMARY.md — Pacer quick-reference checklist
+
+- [ ] This is a finished vertical slice, not a prototype — narrow but complete, polished, and reviewer-ready
+- [ ] All six dimensions must ship: periodization detection, conversational coaching, ACWR injury risk, race prediction, weekly brief, workout classification
+- [ ] Primary data path is a deterministic generated 12-week half-marathon training block seeded into the database
+- [ ] TCX export is an optional compatibility path (`.tcx` only — never `.fit`; TCX is XML, accepted by Strava)
+- [ ] Strava is optional; the reviewer must be able to evaluate the full product from seeded data alone
+- [ ] Prisma is pinned to v6 (`prisma@6`, `@prisma/client@6`); do not upgrade to v7
+- [ ] `package.json#prisma.seed` is the accepted seed config for Prisma v6; deprecation warnings are expected and acceptable
+- [ ] Always seed explicitly with `npx prisma db seed`; never rely on `migrate dev` or `migrate reset` to seed
+- [ ] Use the v6 datasource pattern: `url = env("DATABASE_URL")` and `directUrl = env("DIRECT_URL")`
+- [ ] All business logic lives in `src/lib` (`intelligence`, `demo`, `coach`, `db`, `schemas`, optionally `strava`)
+- [ ] Route handlers are thin — no business logic in route files, no intelligence logic in React components
+- [ ] All features are powered by a unified context: `buildAthleteIntelligenceContext(athleteId)` / `buildCoachContext(athleteId, activityId?)`
+- [ ] Claude API routes set `export const runtime = 'nodejs'` and `export const maxDuration = 60`
+- [ ] Use `ANTHROPIC_MODEL` env var if set; default to `claude-sonnet-4-6`
+- [ ] Send compact computed signals to Claude — never raw per-second activity streams
+- [ ] Bound coach conversation history to recent turns; summarize older context
+- [ ] Weekly brief and core signals must work deterministically without Claude (AI can rewrite, not generate from scratch)
+- [ ] Injury-risk copy uses "risk signal / training-load spike / caution range / higher-risk pattern" — no medical claims
+- [ ] Workout classifier is rule-based and returns `label`, `confidence`, `explanation`, `execution_evaluation`
+- [ ] Race prediction uses the Riegel formula `T2 = T1 × (D2/D1)^1.06` with transparent fatigue/specificity adjustments surfaced in the UI
+- [ ] Every page has loading, empty, and error states; dashboard answers the five training questions
+- [ ] After each working section: run checks, inspect diff, commit — do not batch unrelated changes
