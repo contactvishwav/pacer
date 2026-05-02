@@ -1,0 +1,414 @@
+// Prisma v6 — intentionally pinned, do not upgrade to v7.
+// v7 changes datasource config, requires driver adapters, changes generated
+// client imports, environment loading, and seed behavior.
+// See AGENT_GUIDELINES.md §Prisma version decision.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+// Where an activity came from. Drives data-path logic and display labels.
+enum ActivitySource {
+  GENERATED // created by the population system (primary demo path)
+  STRAVA // imported via Strava API (optional, future)
+  MANUAL // entered by hand (future)
+}
+
+// Rule-based workout classification labels.
+// intendedWorkoutType and workoutType are compared to produce executionEvaluation.
+enum WorkoutType {
+  EASY // zone 2 aerobic, conversational effort
+  RECOVERY // very easy, active recovery
+  STEADY_STATE // comfortably hard, marathon pace region
+  TEMPO // lactate threshold, ~1-hour race pace
+  THRESHOLD // slightly faster than tempo, 10k–HM race effort
+  INTERVAL // structured fast/rest repetitions
+  LONG_RUN // distance-capped easy effort, > ~14 km
+  RACE // competitive event
+  UNKNOWN // classifier could not determine type
+}
+
+// Periodization phase, used by the phase-detection engine and weekly brief.
+enum TrainingPhase {
+  BASE // aerobic foundation weeks, low intensity, moderate volume
+  BUILD // adding intensity, medium volume
+  PEAK // highest load weeks, race-specific intensity
+  TAPER // volume reduction pre-race, sharpening
+  RECOVERY // post-race or post-peak recovery block
+  UNSTRUCTURED // no recognizable periodization pattern
+}
+
+// Coaching conversation message roles — maps directly to Claude API roles.
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// What kind of context a coaching conversation is anchored to.
+// Used to load the right intelligence context for each session.
+enum ConversationContext {
+  DASHBOARD // general training overview
+  ACTIVITY // specific activity debrief
+  RACE_GOAL // race planning and prediction
+  WEEKLY_BRIEF // weekly coaching brief discussion
+  GENERAL // open-ended coaching
+}
+
+enum DistanceUnit {
+  KM
+  MILES
+}
+
+// ─── Core athlete and goal models ─────────────────────────────────────────────
+
+// The central entity. In the demo build: one athlete, seeded deterministically.
+// athleteId is the primary key threaded through all intelligence context calls.
+model Athlete {
+  id               String       @id @default(cuid())
+  name             String
+  email            String?      @unique
+  dateOfBirth      DateTime?
+  restingHeartRate Int? // bpm; used for HR zone calculation
+  maxHeartRate     Int? // bpm; estimated if not provided
+  preferredUnit    DistanceUnit @default(KM)
+  timezone         String       @default("UTC")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  goalRaces        GoalRace[]
+  activities       Activity[]
+  weeklySummaries  WeeklyTrainingSummary[]
+  weeklyBriefs     WeeklyCoachingBrief[]
+  conversations    CoachConversation[]
+  memories         CoachMemory[]
+  datasets         GeneratedDatasetMetadata[]
+  stravaConnection StravaConnection?
+
+  @@map("athletes")
+}
+
+// The race the athlete is targeting. Anchors race prediction and periodization.
+// isActive = true means this is the current goal; supports future multi-goal history.
+model GoalRace {
+  id              String   @id @default(cuid())
+  athleteId       String
+  raceName        String
+  raceDate        DateTime
+  distanceMeters  Float // 21097.5 for half-marathon, 42195 for marathon
+  goalTimeSeconds Int? // target finish time in seconds; null = finish only
+  isActive        Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  athlete      Athlete               @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  weeklyBriefs WeeklyCoachingBrief[]
+
+  @@index([athleteId, isActive])
+  @@map("goal_races")
+}
+
+// ─── Activity and lap models ───────────────────────────────────────────────────
+
+// One completed run. Stores the aggregate metrics needed by all six intelligence
+// dimensions. Raw per-second GPS/HR streams are not stored — derived metrics only.
+//
+// Training load (trainingLoad) is a dimensionless TRIMP proxy:
+//   duration_minutes × hrIntensityFactor (zone-weighted, 1.0–4.0)
+// Used for ACWR computation: ACWR = sum(7d load) / mean_weekly(28d load)
+model Activity {
+  id               String         @id @default(cuid())
+  athleteId        String
+  source           ActivitySource @default(GENERATED)
+  stravaActivityId BigInt?        @unique // Strava's own ID; BigInt per Strava API spec
+
+  // Core event data
+  startedAt           DateTime
+  distanceMeters      Float // meters
+  durationSeconds     Int // total elapsed time
+  movingTimeSeconds   Int // time in motion (differs from duration on Strava imports)
+  elevationGainMeters Float? // meters
+
+  // Pace and HR aggregates — the classifier's primary inputs
+  avgPaceSecPerKm Int // seconds per km
+  avgHeartRate    Int? // bpm
+  maxHeartRate    Int? // bpm
+  avgCadence      Int? // steps per minute (running cadence, not stride)
+  calories        Int?
+
+  // Training load for ACWR and TSB computation
+  trainingLoad Float // dimensionless TRIMP proxy
+
+  // Workout classification (rule-based classifier output)
+  workoutType            WorkoutType @default(UNKNOWN)
+  workoutTypeConfidence  Float? // 0.0–1.0
+  workoutTypeExplanation String? // classifier rationale surfaced in UI
+  executionEvaluation    String? // assessment of execution vs intent
+
+  // Ground truth for generated activities.
+  // Compared with workoutType to produce executionEvaluation.
+  intendedWorkoutType WorkoutType?
+
+  // Periodization context (denormalized for JOIN-free phase queries)
+  trainingPhase TrainingPhase?
+  trainingWeek  Int? // 1-based week relative to program start date
+
+  // File tracking
+  hasGps  Boolean @default(false)
+  tcxPath String? // relative path to .tcx export; null until exported
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athlete Athlete       @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  laps    ActivityLap[]
+
+  @@index([athleteId, startedAt])
+  @@index([athleteId, workoutType])
+  @@index([athleteId, trainingPhase])
+  @@map("activities")
+}
+
+// Per-activity lap splits. Required for:
+//   1. Workout classification of interval sessions (fast + rest lap alternation)
+//   2. TCX file export (TCX <Lap> elements map 1:1 to these rows)
+//   3. Execution evaluation of multi-segment workouts (e.g., progression runs)
+//
+// This table replaces a generic ActivityMetrics / ActivityStreamSummary:
+// it captures the structured sub-activity data the intelligence layer needs
+// without storing raw per-second GPS/HR streams.
+model ActivityLap {
+  id              String   @id @default(cuid())
+  activityId      String
+  lapNumber       Int // 1-based ordering
+  distanceMeters  Float
+  durationSeconds Int
+  avgPaceSecPerKm Int
+  avgHeartRate    Int? // bpm
+  maxHeartRate    Int? // bpm
+  avgCadence      Int?
+  isRest          Boolean  @default(false) // true for recovery intervals
+  createdAt       DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, lapNumber])
+  @@map("activity_laps")
+}
+
+// ─── Training load and phase models ───────────────────────────────────────────
+
+// Pre-computed weekly training summary. One row per athlete per week.
+// Provides ACWR, CTL/ATL/TSB snapshots, and phase detection results
+// without requiring the intelligence layer to aggregate from raw activities
+// on every request.
+//
+// ACWR definition used: ATL / CTL where ATL = 7-day EWA, CTL = 42-day EWA.
+// An alternative (Gabbett) uses 7-day sum / (28-day sum / 4). Either is stored here.
+// The computation method is in src/lib/intelligence/acwr.ts.
+model WeeklyTrainingSummary {
+  id            String   @id @default(cuid())
+  athleteId     String
+  weekStartDate DateTime // Monday 00:00 UTC
+  weekNumber    Int // 1-based, relative to program start date
+
+  // Volume and load aggregates
+  totalDistanceMeters    Float
+  totalDurationSeconds   Int
+  totalMovingTimeSeconds Int
+  activityCount          Int
+  totalLoad              Float // sum of Activity.trainingLoad for the week
+  avgHeartRate           Int?
+  longRunDistanceMeters  Float? // longest single run of the week
+  qualitySessionCount    Int    @default(0) // tempo + threshold + interval count
+
+  // Fitness model snapshot at end of week
+  ctl  Float // Chronic Training Load (42-day EWA of daily load)
+  atl  Float // Acute Training Load (7-day EWA of daily load)
+  tsb  Float // Training Stress Balance = CTL - ATL
+  acwr Float // Acute:Chronic Workload Ratio = ATL / CTL
+
+  // Phase detection output
+  trainingPhase  TrainingPhase
+  phaseRationale String? // short explanation of why this phase was detected
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, weekStartDate])
+  @@index([athleteId, weekNumber])
+  @@map("weekly_training_summaries")
+}
+
+// ─── Weekly brief model ───────────────────────────────────────────────────────
+
+// Stored weekly coaching brief. One row per athlete per week.
+// The five note fields are generated deterministically from computed signals —
+// no Claude call required. The aiRewrite field is populated optionally when
+// the athlete requests a natural-language version.
+//
+// This separation guarantees the brief works even when the Claude API is
+// unavailable. Claude rewrites the brief; it does not generate it from scratch.
+model WeeklyCoachingBrief {
+  id            String   @id @default(cuid())
+  athleteId     String
+  goalRaceId    String?
+  weekStartDate DateTime
+  weekNumber    Int
+
+  // Signal snapshots captured at generation time
+  trainingPhase        TrainingPhase
+  acwr                 Float
+  projectedTimeSeconds Int? // race prediction in seconds; null if insufficient data
+  gapToGoalSeconds     Int? // projected - goal (negative = faster than goal)
+
+  // Deterministic brief sections (always populated, no AI required)
+  phaseNote      String // training phase context and week number
+  keyWorkoutNote String // best or most representative workout from this week
+  riskNote       String // training-load signal: within range / caution / spike
+  priorityNote   String // recommended focus for the coming week
+  trajectoryNote String // race goal trajectory: on track / behind / ahead
+
+  // Optional AI rewrite layer
+  aiRewrite     String?  @db.Text
+  isAiRewritten Boolean  @default(false)
+  generatedAt   DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athlete  Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  goalRace GoalRace? @relation(fields: [goalRaceId], references: [id], onDelete: SetNull)
+
+  @@unique([athleteId, weekStartDate])
+  @@index([athleteId, weekNumber])
+  @@map("weekly_coaching_briefs")
+}
+
+// ─── Coaching conversation models ─────────────────────────────────────────────
+
+// A coaching conversation session. One row per distinct coaching context
+// (e.g., one DASHBOARD conversation, separate ACTIVITY conversations per run).
+// contextType determines which intelligence context is loaded when resuming.
+model CoachConversation {
+  id          String              @id @default(cuid())
+  athleteId   String
+  contextType ConversationContext @default(GENERAL)
+  activityId  String? // populated for ACTIVITY context conversations
+  title       String?
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  athlete  Athlete        @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  messages CoachMessage[]
+
+  @@index([athleteId, contextType])
+  @@index([athleteId, isActive])
+  @@map("coach_conversations")
+}
+
+// Individual message in a coaching conversation.
+// Messages are immutable — no updatedAt.
+// metadata JSON stores structured extras: suggested questions, cited activity IDs.
+// tokenCount is tracked for context-window budget management.
+model CoachMessage {
+  id             String      @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String      @db.Text
+  tokenCount     Int?
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+
+  conversation CoachConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("coach_messages")
+}
+
+// Compressed memory summaries for older conversation context.
+// When conversation history exceeds the bounded-context window (last N turns),
+// older turns are summarized here. buildCoachContext reads the most recent
+// memory summary as the historicalContext field in the system prompt.
+//
+// turnRangeStart/End track which message sequence numbers are covered,
+// enabling gap detection if needed.
+model CoachMemory {
+  id             String   @id @default(cuid())
+  athleteId      String
+  conversationId String? // null = athlete-level memory spanning all conversations
+  summary        String   @db.Text
+  turnRangeStart Int
+  turnRangeEnd   Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId])
+  @@index([conversationId])
+  @@map("coach_memories")
+}
+
+// ─── Generated dataset models ─────────────────────────────────────────────────
+
+// Metadata about a generated training block run. One row per generation.
+// seedHash is derived from the generation parameters (race date, target time,
+// athlete ID, version) — the seed script checks this before re-generating
+// to ensure idempotency. Running the seed twice is always safe.
+model GeneratedDatasetMetadata {
+  id                String   @id @default(cuid())
+  athleteId         String
+  version           String   @default("1.0.0") // bump when generation logic changes
+  raceName          String
+  raceDate          DateTime
+  targetTimeSeconds Int
+  weekCount         Int // number of training weeks generated
+  activityCount     Int // total activities inserted
+  seedHash          String // SHA-256 of generation params; unique per athlete
+  generatedAt       DateTime @default(now())
+  notes             String?
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, seedHash])
+  @@map("generated_dataset_metadata")
+}
+
+// ─── Optional: Strava integration ─────────────────────────────────────────────
+
+// Scaffolded for future use. Not populated in the demo flow.
+// No intelligence dimension requires this table.
+// Tokens must be encrypted at rest before deploying to production.
+// See AGENT_GUIDELINES.md §Optional Strava integration.
+model StravaConnection {
+  id                 String    @id @default(cuid())
+  athleteId          String    @unique
+  stravaAthleteId    BigInt    @unique
+  accessToken        String // encrypt before production deployment
+  refreshToken       String // encrypt before production deployment
+  expiresAt          DateTime
+  scope              String // space-separated OAuth scopes granted
+  lastSyncedAt       DateTime?
+  lastSyncActivityId BigInt? // high-watermark for incremental activity sync
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@map("strava_connections")
+}
