@@ -1,13 +1,32 @@
 import { z } from 'zod'
 import { WorkoutTypeSchema, TrainingPhaseSchema } from './enums'
 
+// ─── Execution evaluation enum ────────────────────────────────────────────────
+
+export const ExecutionEvaluationSchema = z.enum([
+  'MATCHED_INTENT',
+  'TOO_HARD',
+  'TOO_EASY',
+  'WELL_EXECUTED',
+  'UNEVEN_EXECUTION',
+])
+export type ExecutionEvaluation = z.infer<typeof ExecutionEvaluationSchema>
+
 // ─── Workout classification result ────────────────────────────────────────────
 
 export const WorkoutClassificationResultSchema = z.object({
   workoutType: WorkoutTypeSchema,
-  confidence: z.number().min(0).max(1),
+  confidence: z.enum(['high', 'medium', 'low']),
   explanation: z.string().min(1),
-  executionEvaluation: z.string().min(1),
+  executionEvaluation: ExecutionEvaluationSchema,
+  executionNote: z.string(),
+  signals: z.object({
+    avgHRPercent: z.number(),
+    lapHRStdDev: z.number().nullable(),
+    lapPaceStdDev: z.number().nullable(),
+    durationMinutes: z.number(),
+    distanceKm: z.number(),
+  }),
 })
 export type WorkoutClassificationResult = z.infer<typeof WorkoutClassificationResultSchema>
 
@@ -15,11 +34,17 @@ export type WorkoutClassificationResult = z.infer<typeof WorkoutClassificationRe
 
 // Language must match AGENT_GUIDELINES: "risk signal", "training-load spike",
 // "caution range", "higher-risk pattern". No medical claims.
-export const InjuryRiskCategorySchema = z.enum(['optimal', 'caution', 'spike', 'low'])
+export const InjuryRiskCategorySchema = z.enum([
+  'insufficient-data',
+  'underload',
+  'optimal',
+  'caution',
+  'high-risk',
+])
 export type InjuryRiskCategory = z.infer<typeof InjuryRiskCategorySchema>
 
 export const InjuryRiskResultSchema = z.object({
-  acwr: z.number().nonnegative(),
+  acwr: z.number().nonnegative().nullable(),
   category: InjuryRiskCategorySchema,
   explanation: z.string().min(1),
   contributingFactors: z.array(z.string()),
@@ -31,25 +56,30 @@ export type InjuryRiskResult = z.infer<typeof InjuryRiskResultSchema>
 
 export const PeriodizationResultSchema = z.object({
   phase: TrainingPhaseSchema,
-  confidence: z.number().min(0).max(1),
+  confidence: z.enum(['high', 'medium', 'low']),
   primaryReason: z.string().min(1),
   supportingSignals: z.array(z.string()),
   coachingImplication: z.string().min(1),
+  daysUntilRace: z.number().int().nonnegative(),
+  weeksUntilRace: z.number().nonnegative(),
 })
 export type PeriodizationResult = z.infer<typeof PeriodizationResultSchema>
 
 // ─── Race prediction result ───────────────────────────────────────────────────
 
 // Base: Riegel formula T2 = T1 × (D2/D1)^1.06
-// confidenceLow/High are pessimistic/optimistic bounds in seconds.
+// confidenceLow = optimistic bound (fewer seconds), confidenceHigh = pessimistic bound.
+// confidenceLow < predictedTimeSeconds < confidenceHigh
+// confidenceScore is 0–100 (not 0–1).
 export const RacePredictionResultSchema = z.object({
   predictedTimeSeconds: z.number().int().positive(),
   confidenceLow: z.number().int().positive(),
   confidenceHigh: z.number().int().positive(),
-  confidenceScore: z.number().min(0).max(1),
+  confidenceScore: z.number().min(0).max(100),
   gapToGoalSeconds: z.number().int().nullable(),
   explanation: z.string().min(1),
   whatNeedsToHappen: z.string().min(1),
+  dataQualityNotes: z.array(z.string()),
 })
 export type RacePredictionResult = z.infer<typeof RacePredictionResultSchema>
 
@@ -74,6 +104,6 @@ export const ActivitySignalSchema = z.object({
   distanceMeters: z.number().positive(),
   durationSeconds: z.number().int().positive(),
   avgHeartRate: z.number().int().nullable(),
-  executionEvaluation: z.string().nullable(),
+  executionEvaluation: ExecutionEvaluationSchema.nullable(),
 })
 export type ActivitySignal = z.infer<typeof ActivitySignalSchema>

@@ -218,9 +218,11 @@ export function classifyWorkout(
       `(${avgHR} bpm, below the ${Math.round(athlete.easyHRCeiling * RECOVERY_HR_FACTOR)} bpm ` +
       `recovery ceiling). Active recovery pattern.`
 
-  // 2. INTERVAL: alternating work and rest laps detected via lap variance
+  // 2. INTERVAL: alternating work and rest laps detected via lap variance.
+  // Requires ≥ 3 laps — a 2-lap warmup+main structure can produce high HR/pace
+  // variance without representing true interval structure.
   } else if (
-    activity.laps.length > 1 &&
+    activity.laps.length >= 3 &&
     lapHRStdDev !== null && lapHRStdDev > INTERVAL_HR_STDDEV &&
     lapPaceStdDev !== null && lapPaceStdDev > INTERVAL_PACE_STDDEV
   ) {

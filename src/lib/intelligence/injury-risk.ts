@@ -145,7 +145,37 @@ export function computeInjuryRisk(
   })
 
   if (!currentSummary) {
-    return { ...insufficientResult(weeklyLoadTrend, acwrHistory), confidence: 'low' }
+    // Fallback: athlete hasn't completed the current week yet — estimate acute
+    // load from activities in the trailing 7 days from the last activity date.
+    const sevenDaysAgo = new Date(refDate.getTime() - 7 * 86_400_000)
+    const recentActs   = activities.filter(a => startOfDayUTC(a.startedAt) >= sevenDaysAgo)
+    const acuteLoad    = recentActs.reduce((s, a) => s + a.trainingLoad, 0)
+
+    const priorWeeks = sortedSummaries.slice(-MIN_PRIOR_WEEKS)
+    if (priorWeeks.length < MIN_PRIOR_WEEKS) {
+      return { ...insufficientResult(weeklyLoadTrend, acwrHistory), confidence: 'low' }
+    }
+
+    const chronicLoad = priorWeeks.reduce((s, w) => s + w.totalLoad, 0) / MIN_PRIOR_WEEKS
+    const acwr = chronicLoad > 0 ? r3(acuteLoad / chronicLoad) : null
+    if (acwr === null) {
+      return { ...insufficientResult(weeklyLoadTrend, acwrHistory), confidence: 'medium' }
+    }
+
+    const category = getAcwrCategory(acwr)
+    return {
+      acwr,
+      category,
+      confidence: 'medium',
+      explanation: buildExplanation(acwr, category, acuteLoad, chronicLoad),
+      contributingFactors: [
+        'Current week is incomplete — acute load estimated from last 7 days',
+        `Estimated acute load: ${r0(acuteLoad)} TRIMP from ${recentActs.length} session(s)`,
+      ],
+      recommendedAction: buildRecommendation(category),
+      weeklyLoadTrend,
+      acwrHistory,
+    }
   }
 
   // ── Acute load: activities in the current calendar week ───────────────────

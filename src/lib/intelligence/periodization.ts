@@ -124,9 +124,9 @@ function recovery(
     confidence: isLoadDrop && Math.abs(tsb) < 10 ? 'medium' : 'high',
     primaryReason: reason,
     supportingSignals: signals,
-    coachingImplication: isInjuryDriven
-      ? 'Reduce training load immediately. Address the injury-risk signal before resuming normal training.'
-      : 'Planned recovery in progress. Protect this week — freshness now will pay dividends in the build ahead.',
+    coachingImplication: (injuryCategory === 'high-risk' || injuryCategory === 'caution')
+      ? 'Load spike detected — prioritize recovery this week before adding volume.'
+      : 'Planned recovery phase — trust the process, your fitness is preserved.',
     daysUntilRace: days,
     weeksUntilRace: weeks,
   }
@@ -188,7 +188,6 @@ function peak(
 function build(
   days: number,
   weeks: number,
-  currentLoad: number,
   recentLoads: number[],
   qualityCount: number,
   ctl: number,
@@ -324,7 +323,7 @@ export function detectTrainingPhase(input: PeriodizationInput): PeriodizationRes
     loadTrendingUp &&
     currentQuality >= BUILD_QUALITY_MIN
   ) {
-    return build(days, weeks, currentLoad, trend3, currentQuality, currentCTL)
+    return build(days, weeks, trend3, currentQuality, currentCTL)
   }
 
   // ── Rule 5 & Default: BASE ────────────────────────────────────────────────

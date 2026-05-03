@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TrainingPhaseSchema, MessageRoleSchema } from './enums'
-import { RacePredictionResultSchema, ActivitySignalSchema } from './intelligence'
+import { RacePredictionResultSchema, ActivitySignalSchema, InjuryRiskCategorySchema } from './intelligence'
 import { LapSchema } from './activity'
 import { WorkoutTypeSchema } from './enums'
 
@@ -30,8 +30,9 @@ export const CoachContextSchema = z.object({
     ctl: z.number().nonnegative(),
     atl: z.number().nonnegative(),
     tsb: z.number(),
-    acwr: z.number().nonnegative(),
-    acwrCategory: z.enum(['optimal', 'caution', 'spike', 'low']),
+    acwr: z.number().nullable(),
+    acwrCategory: InjuryRiskCategorySchema,
+    trend: z.string(),
   }),
 
   racePrediction: RacePredictionResultSchema.nullable(),

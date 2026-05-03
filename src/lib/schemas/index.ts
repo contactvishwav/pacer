@@ -102,8 +102,9 @@ const COACH_CONTEXT_FALLBACK: CoachContext = {
     ctl: 0,
     atl: 0,
     tsb: 0,
-    acwr: 1,
-    acwrCategory: 'optimal',
+    acwr: null,
+    acwrCategory: 'insufficient-data',
+    trend: 'neutral',
   },
   racePrediction: null,
   weeklyBrief: {
@@ -152,6 +153,7 @@ const RACE_PREDICTION_FALLBACK: RacePredictionResult = {
   gapToGoalSeconds: null,
   explanation: 'Insufficient data for race prediction.',
   whatNeedsToHappen: 'Complete more tempo or threshold sessions.',
+  dataQualityNotes: [],
 }
 
 export function validateRacePrediction(data: unknown): ValidationResult<RacePredictionResult> {
