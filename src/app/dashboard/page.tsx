@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty } from '@/components/empty'
@@ -198,6 +197,18 @@ function DashboardSkeleton() {
 
 // ─── Section 1: Training Phase ─────────────────────────────────────────────────
 
+// Phases in the canonical training arc order for the timeline strip
+const TRAINING_ARC = ['BASE', 'BUILD', 'PEAK', 'TAPER', 'RACE'] as const
+type ArcPhase = (typeof TRAINING_ARC)[number]
+
+const ARC_SEGMENT_COLORS: Record<ArcPhase, string> = {
+  BASE:    'bg-zinc-400',
+  BUILD:   'bg-blue-400',
+  PEAK:    'bg-orange-400',
+  TAPER:   'bg-purple-400',
+  RACE:    'bg-red-400',
+}
+
 interface PhaseCardProps {
   phase: DashboardData['phase']
   goalRace: DashboardData['goalRace']
@@ -206,62 +217,96 @@ interface PhaseCardProps {
 
 function PhaseCard({ phase, goalRace, trainingLoad }: PhaseCardProps) {
   const ps = phaseStyles(phase.phase)
+  const arcPhase = TRAINING_ARC.includes(phase.phase as ArcPhase) ? phase.phase as ArcPhase : null
+
+  const tsbValue = Math.round(trainingLoad.tsb)
+  const tsbColorClass =
+    tsbValue > 5   ? 'text-green-400' :
+    tsbValue >= -10 ? 'text-amber-400' :
+                     'text-red-400'
+
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            Training Phase
-          </CardTitle>
-          <Badge className={cn('border text-[10px] font-medium', ps.badge)}>
-            {confidenceLabel(phase.confidence)}
-          </Badge>
-        </div>
+        <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          Training Phase
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Phase label */}
-        <div className="flex items-center gap-3">
-          <span className={cn('h-2.5 w-2.5 rounded-full', ps.dot)} />
-          <span className="text-3xl font-bold tracking-tight text-foreground">
-            {phase.phase}
-          </span>
+
+        {/* Phase timeline strip — "you are here" */}
+        <div className="space-y-1">
+          <div className="flex gap-0.5">
+            {TRAINING_ARC.map((p) => {
+              const active = p === arcPhase
+              return (
+                <div key={p} className="flex flex-1 flex-col items-center gap-1">
+                  <div
+                    className={cn(
+                      'h-1.5 w-full rounded-full transition-all',
+                      active ? ARC_SEGMENT_COLORS[p] : 'bg-muted/40',
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'text-[8px] font-semibold uppercase tracking-wider',
+                      active ? 'text-foreground' : 'text-muted-foreground/40',
+                    )}
+                  >
+                    {p}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        {/* Primary reason */}
-        <p className="text-sm text-muted-foreground">{phase.primaryReason}</p>
+        {/* Phase name + confidence */}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', ps.dot)} />
+            <span className="text-3xl font-bold tracking-tight text-foreground">
+              {phase.phase}
+            </span>
+            <span className="text-xs text-muted-foreground/80">
+              ({confidenceLabel(phase.confidence).toLowerCase()})
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm text-muted-foreground">{phase.primaryReason}</p>
+        </div>
 
-        {/* Coaching implication */}
-        <p className="border-l-2 border-primary/40 pl-3 text-sm text-foreground/80 italic">
-          {phase.coachingImplication}
-        </p>
+        {/* Coaching implication — left-bordered callout */}
+        <div className="rounded-r-md border-l-2 border-primary bg-primary/5 py-2 pl-3 pr-2">
+          <p className="text-sm italic leading-relaxed text-foreground/85">
+            {phase.coachingImplication}
+          </p>
+        </div>
 
         {/* Load stats row */}
         <div className="flex gap-4 border-t border-border pt-3">
-          {[
-            { label: 'CTL', value: Math.round(trainingLoad.ctl) },
-            { label: 'ATL', value: Math.round(trainingLoad.atl) },
-            { label: 'TSB', value: Math.round(trainingLoad.tsb) },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex flex-col">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                {label}
-              </span>
-              <span
-                className={cn(
-                  'text-lg font-semibold tabular-nums',
-                  label === 'TSB' && value >= 0 ? 'text-green-400' : '',
-                  label === 'TSB' && value < -10 ? 'text-amber-400' : '',
-                  label !== 'TSB' ? 'text-foreground' : '',
-                )}
-              >
-                {value > 0 && label === 'TSB' ? '+' : ''}{value}
-              </span>
-            </div>
-          ))}
           <div className="flex flex-col">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Trend
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">CTL</span>
+            <span className="text-lg font-semibold tabular-nums text-foreground">
+              {Math.round(trainingLoad.ctl)}
             </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">ATL</span>
+            <span className="text-lg font-semibold tabular-nums text-foreground">
+              {Math.round(trainingLoad.atl)}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">TSB</span>
+            <span className={cn('text-lg font-semibold tabular-nums', tsbColorClass)}>
+              {tsbValue > 0 ? '+' : ''}{tsbValue}
+            </span>
+            <span className="mt-0.5 text-[8px] leading-tight text-muted-foreground/50">
+              Positive = fresh · Negative = fatigued
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Trend</span>
             <span className="text-lg font-semibold capitalize text-foreground">
               {trainingLoad.trend}
             </span>
@@ -271,8 +316,15 @@ function PhaseCard({ phase, goalRace, trainingLoad }: PhaseCardProps) {
         {/* Days until race */}
         {goalRace && (
           <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-primary">{goalRace.daysUntilRace}</span>{' '}
-            days to {goalRace.name}
+            <span
+              className={cn(
+                'font-semibold text-primary',
+                goalRace.daysUntilRace < 30 && 'animate-pulse',
+              )}
+            >
+              {goalRace.daysUntilRace}
+            </span>{' '}
+            days until {goalRace.name}
           </p>
         )}
       </CardContent>
@@ -282,6 +334,67 @@ function PhaseCard({ phase, goalRace, trainingLoad }: PhaseCardProps) {
 
 // ─── Section 2: Injury Risk / ACWR ────────────────────────────────────────────
 
+function riskZoneLabel(category: string): string {
+  switch (category) {
+    case 'optimal':           return 'OPTIMAL RANGE'
+    case 'caution':           return 'CAUTION RANGE'
+    case 'high-risk':         return 'HIGHER-RISK PATTERN'
+    case 'underload':         return 'UNDERLOAD SIGNAL'
+    case 'insufficient-data': return 'INSUFFICIENT DATA'
+    default:                  return category.toUpperCase()
+  }
+}
+
+function factorIcon(factor: string): string {
+  const lower = factor.toLowerCase()
+  if (/load|volume|spike|jump|trimp|sharp|week|surge/.test(lower)) return '⚠️'
+  return '📈'
+}
+
+// ACWR zone bar — range 0..2.0, zones at 0.8 | 1.3 | 1.5
+function ACWRZoneBar({ acwr }: { acwr: number | null }) {
+  const MAX = 2.0
+  const markerPct = acwr != null ? Math.min(100, Math.max(0, (acwr / MAX) * 100)) : null
+
+  return (
+    <div className="space-y-1">
+      <div className="relative h-3 w-full overflow-hidden rounded-full">
+        {/* blue: 0–0.8 (40%) */}
+        <div className="absolute inset-y-0 left-0" style={{ width: '40%', background: 'rgb(96 165 250 / 0.35)' }} />
+        {/* green: 0.8–1.3 (25%) */}
+        <div className="absolute inset-y-0" style={{ left: '40%', width: '25%', background: 'rgb(74 222 128 / 0.45)' }} />
+        {/* amber: 1.3–1.5 (10%) */}
+        <div className="absolute inset-y-0" style={{ left: '65%', width: '10%', background: 'rgb(251 191 36 / 0.55)' }} />
+        {/* red: 1.5–2.0 (25%) */}
+        <div className="absolute inset-y-0" style={{ left: '75%', right: '0', background: 'rgb(248 113 113 / 0.45)' }} />
+        {/* Current ACWR marker */}
+        {markerPct != null && (
+          <div
+            className="absolute inset-y-0 w-[3px] rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.7)]"
+            style={{ left: `${markerPct}%`, transform: 'translateX(-50%)' }}
+          />
+        )}
+      </div>
+      {/* Boundary labels */}
+      <div className="relative h-3.5 w-full">
+        {[
+          { value: '0.8', pct: 40 },
+          { value: '1.3', pct: 65 },
+          { value: '1.5', pct: 75 },
+        ].map(({ value, pct }) => (
+          <span
+            key={value}
+            className="absolute -translate-x-1/2 text-[9px] text-muted-foreground/60"
+            style={{ left: `${pct}%` }}
+          >
+            {value}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 interface InjuryRiskCardProps {
   injuryRisk: DashboardData['injuryRisk']
 }
@@ -289,47 +402,69 @@ interface InjuryRiskCardProps {
 function InjuryRiskCard({ injuryRisk }: InjuryRiskCardProps) {
   const rs = riskStyles(injuryRisk.category)
   const acwrDisplay = injuryRisk.acwr != null ? injuryRisk.acwr.toFixed(2) : '—'
-  const categoryLabel = injuryRisk.category.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            Training-Load Risk
-          </CardTitle>
-          <Badge className={cn('border text-[10px] font-medium capitalize', rs.badge)}>
-            {categoryLabel}
-          </Badge>
-        </div>
+        <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          Training-Load Risk Signal
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* ACWR large value */}
-        <div className="flex items-end gap-2">
-          <span className={cn('text-4xl font-bold tabular-nums tracking-tight', rs.acwr)}>
-            {acwrDisplay}
-          </span>
-          <span className="mb-1 text-xs text-muted-foreground">ACWR</span>
+
+        {/* ACWR value + zone label */}
+        <div>
+          <div className="flex items-end gap-2">
+            <span className={cn('text-5xl font-bold tabular-nums tracking-tight', rs.acwr)}>
+              {acwrDisplay}
+            </span>
+            <span className="mb-1.5 text-xs text-muted-foreground">ACWR</span>
+          </div>
+          <p className={cn('mt-1 text-[10px] font-bold uppercase tracking-widest', rs.acwr)}>
+            {riskZoneLabel(injuryRisk.category)}
+          </p>
         </div>
 
-        {/* Explanation */}
+        {/* Risk zone context bar */}
+        <ACWRZoneBar acwr={injuryRisk.acwr} />
+
+        {/* Explanation — cautious language, no "injury" */}
         <p className="text-sm text-muted-foreground">{injuryRisk.explanation}</p>
 
-        {/* Recommended action */}
+        {/* Coach recommendation box */}
         <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5">
-          <p className="text-xs font-medium text-primary/90">{injuryRisk.recommendedAction}</p>
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary/70">
+            Coach Recommendation
+          </p>
+          <div className="flex items-start gap-2">
+            <svg
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/80"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+            <p className="text-xs font-medium text-primary/90">{injuryRisk.recommendedAction}</p>
+          </div>
         </div>
 
-        {/* Contributing factors */}
+        {/* Contributing signals */}
         {injuryRisk.contributingFactors.length > 0 && (
-          <ul className="space-y-1">
-            {injuryRisk.contributingFactors.map((factor, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
-                {factor}
-              </li>
-            ))}
-          </ul>
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Contributing Signals
+            </p>
+            <ul className="space-y-1.5">
+              {injuryRisk.contributingFactors.map((factor, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <span className="shrink-0 text-[11px] leading-[1.3]">{factorIcon(factor)}</span>
+                  {factor}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </CardContent>
     </Card>
