@@ -13,7 +13,7 @@
 //     → Compact context sent to Claude on every coaching API call.
 //       Targets < 2,000 tokens before the system prompt and user message.
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../db/prisma'
 import type {
   Athlete,
   GoalRace as PrismaGoalRace,
@@ -38,10 +38,6 @@ import {
 } from './race-prediction'
 import { generateWeeklyBrief, type WeeklyBriefInput } from './weekly-brief'
 import type { WeeklyBriefResult } from '../schemas/intelligence'
-
-// ─── Prisma client ────────────────────────────────────────────────────────────
-
-const prisma = new PrismaClient()
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
