@@ -69,6 +69,17 @@ function buildLoadImpact(load: number, tl: TrainingLoadResult): string {
   )
 }
 
+function executionLabel(ev: string | null): string {
+  const labels: Record<string, string> = {
+    MATCHED_INTENT:   'Workout executed as intended.',
+    WELL_EXECUTED:    'Clean execution — session matched the target stimulus.',
+    TOO_HARD:         'Effort exceeded the prescribed training zone.',
+    TOO_EASY:         'Effort was below the prescribed training zone.',
+    UNEVEN_EXECUTION: 'Uneven effort across the session.',
+  }
+  return ev ? (labels[ev] ?? ev) : ''
+}
+
 function buildFollowUpQuestion(workoutType: string, execEval: string | null): string {
   const isEasyOrRecovery = workoutType === 'EASY' || workoutType === 'RECOVERY'
 
@@ -134,7 +145,7 @@ export async function GET(
       coaching: {
         phaseSummary:    buildPhaseSummary(activity.workoutType, ctx.phase),
         loadImpact:      buildLoadImpact(activity.trainingLoad, ctx.trainingLoad),
-        executionNote:   activity.executionEvaluation,
+        executionNote:   executionLabel(activity.executionEvaluation),
         followUpQuestion: buildFollowUpQuestion(activity.workoutType, activity.executionEvaluation),
       },
       currentFitness: {

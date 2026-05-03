@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-export const DEMO_VERSION = '1.1.0'
+export const DEMO_VERSION = '1.1.1'
 
 // Fixed reference date — must NOT use new Date() so output is always identical.
 // All activity dates are computed backwards from this Saturday.
@@ -345,17 +345,28 @@ function buildActivity(spec: WorkoutSpec): ActivityData {
 
   const trainingLoad = (durationSec / 60) * INTENSITY_FACTOR[type]
 
-  // Classifier output — in generated data we pre-populate what the classifier would produce
+  // Classifier output — in generated data we pre-populate what the classifier would produce.
+  // executionEvaluation stores the canonical enum value so route logic (buildFollowUpQuestion)
+  // can match against it directly. workoutTypeExplanation carries the human-readable rationale.
   let detectedType    = type
   let confidence      = jitterF(0.88, 0.06)
   let explanation     = classifierExplanation(type, avgHr, avgPace, distKm)
-  let executionNote   = 'Workout executed as intended.'
+  let executionEnum   = 'MATCHED_INTENT'
 
   if (isMisexecuted) {
     detectedType  = 'STEADY_STATE'
     confidence    = 0.82
-    explanation   = `Average heart rate (${avgHr} bpm) and pace (${Math.floor(avgPace / 60)}:${String(avgPace % 60).padStart(2, '0')}/km) indicate a moderate aerobic effort (Zone 3), classified as steady state rather than easy.`
-    executionNote = `Run intended as easy (Zone 2) but executed above the easy HR ceiling of ${DEMO_ATHLETE.easyHrCeiling} bpm. Average HR was ${avgHr} bpm — ${avgHr - DEMO_ATHLETE.easyHrCeiling} bpm over ceiling. Consider keeping future easy runs below ${DEMO_ATHLETE.easyHrCeiling} bpm for adequate recovery.`
+    // Combine classifier rationale + execution narrative so the full context
+    // is available in workoutTypeExplanation (surfaced as classification.executionNote).
+    explanation   = (
+      `Average heart rate (${avgHr} bpm) and pace (${Math.floor(avgPace / 60)}:${String(avgPace % 60).padStart(2, '0')}/km) ` +
+      `indicate a moderate aerobic effort (Zone 3), classified as steady state rather than easy. ` +
+      `Run intended as easy (Zone 2) but executed above the easy HR ceiling of ${DEMO_ATHLETE.easyHrCeiling} bpm. ` +
+      `Average HR was ${avgHr} bpm — ${avgHr - DEMO_ATHLETE.easyHrCeiling} bpm over ceiling.`
+    )
+    executionEnum = 'TOO_HARD'
+  } else if (type === 'TEMPO' || type === 'THRESHOLD' || type === 'INTERVAL') {
+    executionEnum = 'WELL_EXECUTED'
   }
 
   const laps = buildLaps(detectedType, distKm, avgPace, avgHr, maxHr, cad)
@@ -376,7 +387,7 @@ function buildActivity(spec: WorkoutSpec): ActivityData {
     workoutType: detectedType,
     workoutTypeConfidence: Math.min(0.99, Math.max(0.6, confidence)),
     workoutTypeExplanation: explanation,
-    executionEvaluation: executionNote,
+    executionEvaluation: executionEnum,
     intendedWorkoutType: type,
     trainingPhase: phase,
     trainingWeek: weekNumber,
