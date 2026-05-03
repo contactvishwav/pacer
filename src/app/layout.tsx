@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { Toaster } from 'sonner'
+import { Nav } from '@/components/nav'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -13,8 +15,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-gray-950 text-gray-50 antialiased">
-        {children}
+      <body className="min-h-screen bg-background text-foreground antialiased">
+        <Nav />
+        <main className="mx-auto max-w-6xl px-4 pb-12 pt-20 sm:px-6">
+          {children}
+        </main>
+        <Toaster theme="dark" position="bottom-right" richColors />
       </body>
     </html>
   )
