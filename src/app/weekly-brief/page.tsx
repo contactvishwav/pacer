@@ -189,7 +189,7 @@ export default function WeeklyBriefPage() {
     return (
       <Empty
         title="No weekly brief available"
-        description="Run npx prisma db seed first."
+        description="No training data yet. The app uses a generated training dataset — contact the developer to set up the demo environment."
       />
     )
   }
@@ -218,7 +218,7 @@ export default function WeeklyBriefPage() {
   }
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="animate-in fade-in space-y-8 pb-8 duration-500">
       {/* HEADER */}
       <header className="space-y-1 border-b border-border pb-6">
         <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
@@ -395,22 +395,26 @@ export default function WeeklyBriefPage() {
       </section>
 
       {/* SUGGESTED FOCUS */}
-      <Card className="border-border bg-gradient-to-b from-card to-muted/20">
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold text-foreground">
-            Coach&apos;s focus for this week
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <p className="text-base italic leading-relaxed text-foreground/85 md:text-[17px]">
+      <Card className="border border-primary/30 bg-gradient-to-br from-primary/5 to-card">
+        <CardContent className="py-8">
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/80">
+              Coach&apos;s focus for this week
+            </p>
+            <p className="text-lg font-bold text-foreground">Where to put your energy</p>
+          </div>
+          <p className="mt-4 text-base italic leading-relaxed text-foreground/85 md:text-[17px]">
             {brief.suggestedFocus}
           </p>
-          <Button
-            onClick={handleFollowUp}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            Ask a follow-up about this week
-          </Button>
+          <div className="mt-6">
+            <Button
+              onClick={handleFollowUp}
+              size="lg"
+              className="bg-primary text-primary-foreground shadow-[0_0_20px_rgba(249,115,22,0.2)] hover:bg-primary/90"
+            >
+              Ask a follow-up about this week
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

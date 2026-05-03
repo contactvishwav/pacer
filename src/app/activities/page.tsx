@@ -203,7 +203,7 @@ export default function ActivitiesPage() {
   if (error) {
     return (
       <ErrorState
-        message={`Failed to load activities: ${error}`}
+        message="Something went wrong loading your activities. Please try again."
         onRetry={fetchActivities}
       />
     )
@@ -213,13 +213,13 @@ export default function ActivitiesPage() {
     return (
       <Empty
         title="No activities found"
-        description="Run npx prisma db seed first."
+        description="No training data yet. The app uses a generated training dataset — contact the developer to set up the demo environment."
       />
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="animate-in fade-in space-y-6 duration-500">
       {/* Header */}
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Activities</h1>
@@ -233,7 +233,7 @@ export default function ActivitiesPage() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-14 z-10 bg-card">
                 <tr className="border-b border-border">
                   {['Date', 'Type', 'Activity', 'Distance', 'Pace', 'HR', 'Duration', 'Execution'].map(h => (
                     <th

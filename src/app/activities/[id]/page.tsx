@@ -452,7 +452,7 @@ export default function ActivityDetailPage() {
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           </svg>
-          Back to Activities
+          Activities
         </Link>
         <Empty title="Activity not found" description="This activity does not exist or has been removed." />
       </div>
@@ -462,7 +462,7 @@ export default function ActivityDetailPage() {
   if (error) {
     return (
       <ErrorState
-        message={`Failed to load activity: ${error}`}
+        message="Something went wrong loading this activity. Please try again."
         onRetry={fetchIntelligence}
       />
     )
@@ -471,17 +471,17 @@ export default function ActivityDetailPage() {
   if (!data) return null
 
   return (
-    <div className="space-y-8">
-      {/* Back navigation — top */}
-      <Link
-        href="/activities"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+    <div className="animate-in fade-in space-y-8 duration-500">
+      {/* Breadcrumb — top */}
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href="/activities" className="transition-colors hover:text-foreground">
+          Activities
+        </Link>
+        <svg className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
-        Back to Activities
-      </Link>
+        <span className="max-w-[240px] truncate text-foreground">{data.activity.name}</span>
+      </nav>
 
       {/* Section 1 — Activity header */}
       <ActivityHeader activity={data.activity} classification={data.classification} />
@@ -494,14 +494,14 @@ export default function ActivityDetailPage() {
         <p className="mb-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">
           Activity Intelligence
         </p>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid items-stretch gap-4 md:grid-cols-3">
           <ClassificationCard classification={data.classification} />
           <CoachingContextCard coaching={data.coaching} fitness={data.currentFitness} />
           <AskCoachCard coaching={data.coaching} activityId={data.activity.id} />
         </div>
       </div>
 
-      {/* Section 3 — Back navigation — bottom */}
+      {/* Back navigation — bottom */}
       <div className="border-t border-border pt-6">
         <Link
           href="/activities"

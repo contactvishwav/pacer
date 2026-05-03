@@ -274,7 +274,7 @@ export default function RaceGoalPage() {
     return (
       <Empty
         title="No race goal set"
-        description="Add a goal race to see your prediction."
+        description="No training data yet. The app uses a generated training dataset — contact the developer to set up the demo environment."
       />
     )
   }
@@ -298,7 +298,7 @@ export default function RaceGoalPage() {
   }
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="animate-in fade-in space-y-8 pb-8 duration-500">
       {/* ── SECTION 1: Race header ── */}
       <div className="space-y-4">
         <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
@@ -326,9 +326,14 @@ export default function RaceGoalPage() {
         {/* Card A — Projected finish */}
         <Card className="border-border bg-card">
           <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              Estimated trajectory
-            </CardTitle>
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/80">
+                AI Race Intelligence
+              </p>
+              <CardTitle className="text-base font-bold text-foreground">
+                Estimated Trajectory
+              </CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-5">
             {prediction.predictedTimeFormatted !== '—' &&

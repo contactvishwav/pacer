@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -774,28 +774,35 @@ function CoachCTA({ weeklyBrief, injuryRisk, goalRace }: CoachCTAProps) {
   }
 
   return (
-    <Card className="border border-primary/25 bg-card md:col-span-2">
+    <Card className="border border-primary/40 bg-gradient-to-br from-primary/5 to-card md:col-span-2">
       <CardContent className="pt-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <h3 className="text-base font-semibold text-foreground">Ask your coach</h3>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/80">
+              Your coach is ready
+            </p>
+            <h3 className="text-lg font-bold text-foreground">Ask your coach anything</h3>
             <p className="max-w-xl text-sm text-muted-foreground">{weeklyBrief.suggestedFocus}</p>
           </div>
           <Button
             onClick={() => router.push('/coach')}
-            className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+            size="lg"
+            className="shrink-0 bg-primary text-primary-foreground shadow-[0_0_20px_rgba(249,115,22,0.2)] hover:bg-primary/90"
           >
             Start coaching session
           </Button>
         </div>
 
         {/* Suggested quick questions */}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap gap-2 border-t border-primary/15 pt-4">
+          <p className="w-full text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Quick questions
+          </p>
           {questions.map((q, i) => (
             <button
               key={i}
               onClick={() => navigateWithQuestion(q)}
-              className="rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+              className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary/80 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
             >
               {q}
             </button>
@@ -844,12 +851,15 @@ export default function DashboardPage() {
     fetchDashboard()
   }, [fetchDashboard])
 
+  // Capture load time once on mount for "Last updated" display
+  const loadedAt = useMemo(() => new Date(), [])
+
   if (loading) return <DashboardSkeleton />
 
   if (error) {
     return (
       <ErrorState
-        message={`Failed to load dashboard: ${error}`}
+        message="Something went wrong loading your training data. Please try again."
         onRetry={fetchDashboard}
       />
     )
@@ -859,13 +869,34 @@ export default function DashboardPage() {
     return (
       <Empty
         title="No training data found"
-        description="Run the seed script first: npx prisma db seed"
+        description="No training data yet. The app uses a generated training dataset — contact the developer to set up the demo environment."
       />
     )
   }
 
+  const isLoadRisk = data.injuryRisk.category === 'caution' || data.injuryRisk.category === 'high-risk'
+  const bannerColor = data.injuryRisk.category === 'high-risk'
+    ? 'border-red-500/30 bg-red-500/8 text-red-300'
+    : 'border-amber-500/30 bg-amber-500/8 text-amber-200'
+
   return (
-    <div className="space-y-6">
+    <div className="animate-in fade-in space-y-6 duration-500">
+      {/* ACWR alert banner — shown only when load is elevated */}
+      {isLoadRisk && (
+        <div className={cn(
+          '-mx-4 sm:-mx-6 flex items-center gap-3 border-b px-4 py-3 text-sm sm:px-6',
+          bannerColor,
+        )}>
+          <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+          </svg>
+          <span>
+            <span className="font-semibold">Training-load spike detected this week</span>
+            {' '}— see coaching details below.
+          </span>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="flex items-end justify-between">
         <div>
@@ -875,16 +906,24 @@ export default function DashboardPage() {
           <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-foreground">
             Training Dashboard
           </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your AI coaching intelligence
+          </p>
         </div>
-        {data.goalRace && (
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Next race</p>
-            <p className="text-sm font-semibold text-foreground">{data.goalRace.name}</p>
-            <p className="text-xs text-primary">
-              {data.goalRace.daysUntilRace}d away · {data.goalRace.distanceKm} km
-            </p>
-          </div>
-        )}
+        <div className="flex flex-col items-end gap-1 text-right">
+          {data.goalRace && (
+            <div>
+              <p className="text-xs text-muted-foreground">Next race</p>
+              <p className="text-sm font-semibold text-foreground">{data.goalRace.name}</p>
+              <p className="text-xs text-primary">
+                {data.goalRace.daysUntilRace}d away · {data.goalRace.distanceKm} km
+              </p>
+            </div>
+          )}
+          <p className="text-[10px] text-muted-foreground/50">
+            Updated {loadedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          </p>
+        </div>
       </div>
 
       {/* Grid */}

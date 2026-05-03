@@ -117,12 +117,12 @@ function SuggestedQuestions({ onSelect }: SuggestedQuestionsProps) {
         </p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-3">
         {SUGGESTED_QUESTIONS.map(q => (
           <button
             key={q}
             onClick={() => onSelect(q)}
-            className="rounded-full border border-border bg-muted/30 px-4 py-2 text-sm text-foreground/80 transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+            className="rounded-2xl border border-border bg-muted/40 px-5 py-3 text-sm font-medium text-foreground/85 shadow-sm transition-all hover:border-primary/40 hover:bg-primary/8 hover:text-primary hover:shadow-[0_0_12px_rgba(249,115,22,0.15)]"
           >
             {q}
           </button>
@@ -189,9 +189,9 @@ function AssistantBubble({ message }: AssistantBubbleProps) {
           )}
         </div>
 
-        {/* Source label — shown after streaming ends */}
+        {/* Source label — fades in after streaming ends */}
         {!message.isStreaming && message.content && (
-          <p className="ml-1 mt-1 text-[10px] text-muted-foreground">
+          <p className="animate-in fade-in ml-1 mt-1 text-[10px] text-muted-foreground duration-500">
             {message.isFallback ? 'Computed analysis' : 'Powered by Claude'}
           </p>
         )}
