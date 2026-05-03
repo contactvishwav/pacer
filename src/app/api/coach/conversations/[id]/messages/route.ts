@@ -16,6 +16,63 @@ export const runtime    = 'nodejs'
 export const maxDuration = 60
 export const dynamic    = 'force-dynamic'
 
+// ─── Memory extraction ────────────────────────────────────────────────────────
+//
+// After the assistant message is saved in the Claude success path, a small
+// secondary Claude call determines whether the turn contained durable coaching
+// context (preferences, constraints, injury history, goals). If so, a
+// CoachMemory record is persisted so future sessions can surface it.
+//
+// Called fire-and-forget (void) — never blocks the streaming response.
+// Errors are caught and logged silently; memory extraction is best-effort.
+
+async function maybeExtractMemory(
+  athleteId:         string,
+  conversationId:    string,
+  userMessage:       string,
+  assistantResponse: string,
+  messageCount:      number,
+): Promise<void> {
+  if (!process.env.ANTHROPIC_API_KEY) return
+
+  try {
+    const extractionResponse = await anthropic.messages.create({
+      model:      COACH_MODEL,
+      max_tokens: 150,
+      messages: [{
+        role:    'user',
+        content: `You are extracting durable coaching context from a conversation turn.
+
+Athlete message: "${userMessage}"
+Coach response: "${assistantResponse.slice(0, 500)}"
+
+Does this turn contain durable athlete context worth remembering across future sessions? Examples of durable context: injury history, training preferences, schedule constraints, personal goals, race history.
+
+If yes, respond with ONLY a 1-2 sentence structured summary starting with "Athlete: ". Example: "Athlete prefers morning runs and has a history of left knee pain that flares during high-mileage weeks."
+
+If no durable context, respond with exactly: null`,
+      }],
+    })
+
+    const content = extractionResponse.content[0]
+    if (content.type !== 'text') return
+    const text = content.text.trim()
+    if (text === 'null' || !text.startsWith('Athlete:')) return
+
+    await prisma.coachMemory.create({
+      data: {
+        athleteId,
+        conversationId,
+        summary:        text,
+        turnRangeStart: messageCount,
+        turnRangeEnd:   messageCount,
+      },
+    })
+  } catch (err) {
+    console.error('[Pacer] Memory extraction failed silently:', err)
+  }
+}
+
 // ─── GET: conversation history ────────────────────────────────────────────────
 
 export async function GET(
@@ -187,6 +244,11 @@ export async function POST(
               : undefined,
           },
         })
+
+        // Fire-and-forget memory extraction — runs after stream is closed,
+        // never blocks the response.
+        const msgCount = await prisma.coachMessage.count({ where: { conversationId } })
+        void maybeExtractMemory(athlete.id, conversationId, userMessage, fullText, msgCount)
 
         controller.close()
 
