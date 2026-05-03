@@ -227,3 +227,25 @@ Work in this order. Each checkpoint has a defined commit boundary.
 - Do not put business logic in route handlers or React components
 - Do not hardcode values that should come from seeded data
 - Do not make medical claims in any UI copy
+
+---
+
+## Running the Full Validation Suite
+
+Run these after seeding the database (`npx prisma db seed`) and after any significant change to intelligence engines, the seed, or TCX export.
+
+```bash
+npm run validate:seed
+npm run validate:training-load
+npm run validate:classifier
+npm run validate:injury-risk
+npm run validate:periodization
+npm run validate:race-prediction
+npm run validate:weekly-brief
+npm run validate:context
+npm run validate:tcx
+```
+
+All 9 scripts should pass before submission.
+
+The `validate:tcx` script requires TCX files to be present. Run `npm run export:tcx` first if the `generated-training-data/tcx/` directory is empty or missing.

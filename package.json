@@ -18,7 +18,8 @@
     "validate:periodization": "tsx scripts/validate-periodization.ts",
     "validate:race-prediction": "tsx scripts/validate-race-prediction.ts",
     "validate:weekly-brief": "tsx scripts/validate-weekly-brief.ts",
-    "validate:context": "tsx scripts/validate-context.ts"
+    "validate:context": "tsx scripts/validate-context.ts",
+    "validate:tcx": "tsx scripts/validate-tcx.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
