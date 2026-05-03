@@ -3,6 +3,8 @@
   "/_not-found/page": "/_not-found",
   "/api/activities/[id]/intelligence/route": "/api/activities/[id]/intelligence",
   "/api/activities/route": "/api/activities",
+  "/api/coach/conversations/[id]/messages/route": "/api/coach/conversations/[id]/messages",
+  "/api/coach/conversations/route": "/api/coach/conversations",
   "/api/context/debug/route": "/api/context/debug",
   "/api/dashboard/route": "/api/dashboard",
   "/api/race-prediction/route": "/api/race-prediction",

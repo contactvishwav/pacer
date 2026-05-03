@@ -1,5 +1,4 @@
 {
-  "/api/activities/route": "app/api/activities/route.js",
-  "/api/coach/conversations/[id]/messages/route": "app/api/coach/conversations/[id]/messages/route.js",
-  "/api/coach/conversations/route": "app/api/coach/conversations/route.js"
+  "/api/activities/[id]/intelligence/route": "app/api/activities/[id]/intelligence/route.js",
+  "/api/activities/route": "app/api/activities/route.js"
 }

@@ -1681,6 +1681,16 @@ function buildLoadImpact(load, tl) {
     const direction = tl.trend === 'improving' ? 'building' : tl.trend === 'declining' ? 'declining' : 'stable';
     return `This session contributed ${Math.round(load)} TRIMP to your weekly load. ` + `CTL is ${tl.ctl.toFixed(1)} — fitness is ${direction}.`;
 }
+function executionLabel(ev) {
+    const labels = {
+        MATCHED_INTENT: 'Workout executed as intended.',
+        WELL_EXECUTED: 'Clean execution — session matched the target stimulus.',
+        TOO_HARD: 'Effort exceeded the prescribed training zone.',
+        TOO_EASY: 'Effort was below the prescribed training zone.',
+        UNEVEN_EXECUTION: 'Uneven effort across the session.'
+    };
+    return ev ? labels[ev] ?? ev : '';
+}
 function buildFollowUpQuestion(workoutType, execEval) {
     const isEasyOrRecovery = workoutType === 'EASY' || workoutType === 'RECOVERY';
     if (execEval === 'TOO_HARD' && isEasyOrRecovery) {
@@ -1739,7 +1749,7 @@ async function GET(_request, { params }) {
             coaching: {
                 phaseSummary: buildPhaseSummary(activity.workoutType, ctx.phase),
                 loadImpact: buildLoadImpact(activity.trainingLoad, ctx.trainingLoad),
-                executionNote: activity.executionEvaluation,
+                executionNote: executionLabel(activity.executionEvaluation),
                 followUpQuestion: buildFollowUpQuestion(activity.workoutType, activity.executionEvaluation)
             },
             currentFitness: {

@@ -29,6 +29,14 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/api/activities/(?<nxtPid>[^/]+?)/intelligence(?:/)?$"
+    },
+    {
+      "page": "/api/coach/conversations/[id]/messages",
+      "regex": "^/api/coach/conversations/([^/]+?)/messages(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/coach/conversations/(?<nxtPid>[^/]+?)/messages(?:/)?$"
     }
   ],
   "staticRoutes": [
@@ -55,6 +63,12 @@
       "regex": "^/api/activities(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/activities(?:/)?$"
+    },
+    {
+      "page": "/api/coach/conversations",
+      "regex": "^/api/coach/conversations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/coach/conversations(?:/)?$"
     },
     {
       "page": "/api/context/debug",
