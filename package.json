@@ -15,7 +15,8 @@
     "validate:training-load": "tsx scripts/validate-training-load.ts",
     "validate:injury-risk": "tsx scripts/validate-injury-risk.ts",
     "validate:classifier": "tsx scripts/validate-classifier.ts",
-    "validate:periodization": "tsx scripts/validate-periodization.ts"
+    "validate:periodization": "tsx scripts/validate-periodization.ts",
+    "validate:race-prediction": "tsx scripts/validate-race-prediction.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -71,15 +71,26 @@ export type PeriodizationResult = z.infer<typeof PeriodizationResultSchema>
 // confidenceLow = optimistic bound (fewer seconds), confidenceHigh = pessimistic bound.
 // confidenceLow < predictedTimeSeconds < confidenceHigh
 // confidenceScore is 0–100 (not 0–1).
+// gapToGoalSeconds: positive = behind goal, negative = ahead.
 export const RacePredictionResultSchema = z.object({
-  predictedTimeSeconds: z.number().int().positive(),
-  confidenceLow: z.number().int().positive(),
-  confidenceHigh: z.number().int().positive(),
-  confidenceScore: z.number().min(0).max(100),
-  gapToGoalSeconds: z.number().int().nullable(),
-  explanation: z.string().min(1),
-  whatNeedsToHappen: z.string().min(1),
-  dataQualityNotes: z.array(z.string()),
+  predictedTimeSeconds:    z.number().int().nonnegative(),
+  predictedTimeFormatted:  z.string(),
+  confidenceLow:           z.number().int().nonnegative(),
+  confidenceLowFormatted:  z.string(),
+  confidenceHigh:          z.number().int().nonnegative(),
+  confidenceHighFormatted: z.string(),
+  confidenceScore:         z.number().min(0).max(100),
+  gapToGoalSeconds:        z.number().int().nullable(),
+  gapToGoalFormatted:      z.string(),
+  explanation:             z.string().min(1),
+  whatNeedsToHappen:       z.string().min(1),
+  dataQualityNotes:        z.array(z.string()),
+  bestEffortActivity: z.object({
+    date:          z.string(),
+    distanceKm:    z.number(),
+    paceFormatted: z.string(),
+    workoutType:   z.string(),
+  }).nullable(),
 })
 export type RacePredictionResult = z.infer<typeof RacePredictionResultSchema>
 

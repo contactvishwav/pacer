@@ -146,14 +146,19 @@ export function validateWeeklyBrief(data: unknown): ValidationResult<WeeklyBrief
 // ─── validateRacePrediction ───────────────────────────────────────────────────
 
 const RACE_PREDICTION_FALLBACK: RacePredictionResult = {
-  predictedTimeSeconds: 7200, // 2:00:00 neutral placeholder
-  confidenceLow: 7500,
-  confidenceHigh: 6900,
-  confidenceScore: 0,
-  gapToGoalSeconds: null,
-  explanation: 'Insufficient data for race prediction.',
-  whatNeedsToHappen: 'Complete more tempo or threshold sessions.',
-  dataQualityNotes: [],
+  predictedTimeSeconds:    7200,  // 2:00:00 neutral placeholder
+  predictedTimeFormatted:  '2:00:00',
+  confidenceLow:           6912,  // optimistic (faster)
+  confidenceLowFormatted:  '1:55:12',
+  confidenceHigh:          7488,  // pessimistic (slower)
+  confidenceHighFormatted: '2:04:48',
+  confidenceScore:         10,
+  gapToGoalSeconds:        null,
+  gapToGoalFormatted:      '—',
+  explanation:             'Insufficient data for race prediction.',
+  whatNeedsToHappen:       'Complete more tempo or threshold sessions to generate an estimated trajectory.',
+  dataQualityNotes:        ['Insufficient training data — no qualifying activities found.'],
+  bestEffortActivity:      null,
 }
 
 export function validateRacePrediction(data: unknown): ValidationResult<RacePredictionResult> {
