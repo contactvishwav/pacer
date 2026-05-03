@@ -99,11 +99,11 @@ export type RacePredictionResult = z.infer<typeof RacePredictionResultSchema>
 // This is the structured output from the intelligence layer for display/AI rewrite.
 // Distinct from WeeklyBriefData (DB storage) — richer, UI-oriented format.
 export const WeeklyBriefResultSchema = z.object({
-  lastWeekReview: z.string().min(1),
-  thisWeekPrescription: z.string().min(1),
-  keySignal: z.string().min(1),
-  warnings: z.array(z.string()),
-  suggestedFocus: z.string().min(1),
+  lastWeekReview:       z.array(z.string()).min(2).max(4),
+  thisWeekPrescription: z.array(z.string()).min(2).max(4),
+  keySignal:            z.string().min(1),
+  warnings:             z.array(z.string()),
+  suggestedFocus:       z.string().min(1),
 })
 export type WeeklyBriefResult = z.infer<typeof WeeklyBriefResultSchema>
 

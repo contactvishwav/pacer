@@ -82,11 +82,12 @@ async function main() {
   const recentActivities: ActivityWithClassification[] = allActivities
     .filter(a => a.startedAt >= EIGHT_WEEKS_AGO && a.startedAt <= REFERENCE_DATE)
     .map(a => ({
-      startedAt:         a.startedAt,
-      distanceMeters:    a.distanceMeters,
-      movingTimeSeconds: a.movingTimeSeconds,
-      avgPaceSecPerKm:   a.avgPaceSecPerKm,
-      workoutType:       a.workoutType,
+      startedAt:           a.startedAt,
+      distanceMeters:      a.distanceMeters,
+      movingTimeSeconds:   a.movingTimeSeconds,
+      avgPaceSecPerKm:     a.avgPaceSecPerKm,
+      workoutType:         a.workoutType,
+      executionEvaluation: a.executionEvaluation,
     }))
 
   // ── Load weekly summaries ─────────────────────────────────────────────────

@@ -129,11 +129,11 @@ export function validateCoachContext(data: unknown): ValidationResult<CoachConte
 // ─── validateWeeklyBrief ──────────────────────────────────────────────────────
 
 const WEEKLY_BRIEF_FALLBACK: WeeklyBriefResult = {
-  lastWeekReview: 'Training data unavailable.',
-  thisWeekPrescription: 'Continue with your training plan.',
-  keySignal: 'No signal available.',
-  warnings: [],
-  suggestedFocus: 'Maintain consistency.',
+  lastWeekReview:       ['No activity data available for last week.', 'Check back after your next training session.'],
+  thisWeekPrescription: ['Continue training as planned.', 'Follow your scheduled workouts.'],
+  keySignal:            'No signal available.',
+  warnings:             [],
+  suggestedFocus:       'Maintain consistency.',
 }
 
 export function validateWeeklyBrief(data: unknown): ValidationResult<WeeklyBriefResult> {

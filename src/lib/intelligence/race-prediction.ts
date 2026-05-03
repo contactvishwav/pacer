@@ -35,14 +35,15 @@ export interface GoalRace {
   goalTimeSeconds: number | null  // null = finish only, no time goal
 }
 
-// Minimal activity shape needed by the race prediction engine.
+// Minimal activity shape needed by the race prediction engine and weekly brief.
 // Caller is responsible for pre-filtering to the relevant date window.
 export interface ActivityWithClassification {
-  startedAt:         Date
-  distanceMeters:    number
-  movingTimeSeconds: number
-  avgPaceSecPerKm:   number
-  workoutType:       string  // WorkoutType enum value
+  startedAt:           Date
+  distanceMeters:      number
+  movingTimeSeconds:   number
+  avgPaceSecPerKm:     number
+  workoutType:         string  // WorkoutType enum value
+  executionEvaluation: string | null
 }
 
 export interface WeeklySummaryForPrediction {
@@ -179,7 +180,6 @@ function buildWhatNeedsToHappen(
     : ''
 
   if (gap <= 0) {
-    const absGap  = Math.abs(gap)
     const cushion = gap === 0 ? 'exactly on target' : `${buildGapString(gap)}`
     return (
       `Current projected finish is ${cushion} — you are on track. ` +
