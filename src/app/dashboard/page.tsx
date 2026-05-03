@@ -749,7 +749,7 @@ function deriveSuggestedQuestions(
   injuryRisk: DashboardData['injuryRisk'],
   goalRace: DashboardData['goalRace'],
 ): string[] {
-  const q1 = `What does this week's key signal mean for my training?`
+  const q1 = `Looking at my weekly brief: ${weeklyBrief.keySignal} What should I prioritize this week?`
   const q2 = ['caution', 'high-risk'].includes(injuryRisk.category)
     ? `My ACWR is ${injuryRisk.acwr?.toFixed(2) ?? 'elevated'} — how should I adjust this week?`
     : `Am I building fitness efficiently right now?`
@@ -762,6 +762,16 @@ function deriveSuggestedQuestions(
 function CoachCTA({ weeklyBrief, injuryRisk, goalRace }: CoachCTAProps) {
   const router = useRouter()
   const questions = deriveSuggestedQuestions(weeklyBrief, injuryRisk, goalRace)
+
+  function navigateWithQuestion(q: string) {
+    try {
+      sessionStorage.setItem('coach_prefill_question', q)
+      sessionStorage.removeItem('coach_activity_id')
+    } catch {
+      // sessionStorage unavailable (SSR guard or private browsing)
+    }
+    router.push('/coach')
+  }
 
   return (
     <Card className="border border-primary/25 bg-card md:col-span-2">
@@ -784,7 +794,7 @@ function CoachCTA({ weeklyBrief, injuryRisk, goalRace }: CoachCTAProps) {
           {questions.map((q, i) => (
             <button
               key={i}
-              onClick={() => router.push('/coach')}
+              onClick={() => navigateWithQuestion(q)}
               className="rounded-full border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
             >
               {q}
