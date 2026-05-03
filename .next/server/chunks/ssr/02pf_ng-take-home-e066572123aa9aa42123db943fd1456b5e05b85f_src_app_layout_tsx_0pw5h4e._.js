@@ -1,3 +1,0 @@
-module.exports=[60402,a=>{"use strict";var b=a.i(4993);a.s(["default",0,function({children:a}){return(0,b.jsx)("html",{lang:"en",className:"dark",children:(0,b.jsx)("body",{className:"min-h-screen bg-gray-950 text-gray-50 antialiased",children:a})})},"metadata",0,{title:"Pacer",description:"AI running coach — proactive conversational training coaching"}])},32752,a=>{a.n(a.i(60402))}];
-
-//# sourceMappingURL=02pf_ng-take-home-e066572123aa9aa42123db943fd1456b5e05b85f_src_app_layout_tsx_0pw5h4e._.js.map
