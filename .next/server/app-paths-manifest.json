@@ -1,0 +1,11 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/activities/[id]/intelligence/route": "app/api/activities/[id]/intelligence/route.js",
+  "/api/activities/route": "app/api/activities/route.js",
+  "/api/context/debug/route": "app/api/context/debug/route.js",
+  "/api/dashboard/route": "app/api/dashboard/route.js",
+  "/api/race-prediction/route": "app/api/race-prediction/route.js",
+  "/api/weekly-brief/route": "app/api/weekly-brief/route.js",
+  "/page": "app/page.js"
+}

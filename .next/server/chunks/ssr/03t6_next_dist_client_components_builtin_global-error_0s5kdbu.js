@@ -1,0 +1,3 @@
+module.exports=[32184,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(54734);a.n(d("[project]/Documents/lumalabs-eng-take-home-e066572123aa9aa42123db943fd1456b5e05b85f/node_modules/next/dist/client/components/builtin/global-error.js <module evaluation>"))},45706,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(54734);a.n(d("[project]/Documents/lumalabs-eng-take-home-e066572123aa9aa42123db943fd1456b5e05b85f/node_modules/next/dist/client/components/builtin/global-error.js"))},3068,a=>{"use strict";a.i(32184);var b=a.i(45706);a.n(b)},11452,a=>{a.n(a.i(3068))}];
+
+//# sourceMappingURL=03t6_next_dist_client_components_builtin_global-error_0s5kdbu.js.map

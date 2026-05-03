@@ -1,0 +1,10 @@
+var R=require("../../../../../../chunks/[turbopack]_runtime.js")("server/app/api/coach/conversations/[id]/messages/route.js")
+R.c("server/chunks/0j9p_src_app_api_coach_conversations_[id]_messages_route_ts_0qr4-8n._.js")
+R.c("server/chunks/[root-of-the-server]__0l.7.s7._.js")
+R.c("server/chunks/03t6_next_1244r~n._.js")
+R.c("server/chunks/03t6_@anthropic-ai_sdk_030i223._.js")
+R.c("server/chunks/03t6_zod_v3_0b.cvqw._.js")
+R.c("server/chunks/[externals]_@prisma_client_0yf.vt-._.js")
+R.c("server/chunks/0v_8_server_app_api_coach_conversations_[id]_messages_route_actions_13wcquv.js")
+R.m("[project]/Documents/lumalabs-eng-take-home-e066572123aa9aa42123db943fd1456b5e05b85f/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/Documents/lumalabs-eng-take-home-e066572123aa9aa42123db943fd1456b5e05b85f/src/app/api/coach/conversations/[id]/messages/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/Documents/lumalabs-eng-take-home-e066572123aa9aa42123db943fd1456b5e05b85f/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/Documents/lumalabs-eng-take-home-e066572123aa9aa42123db943fd1456b5e05b85f/src/app/api/coach/conversations/[id]/messages/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

@@ -1,0 +1,8 @@
+var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/race-prediction/route.js")
+R.c("server/chunks/[root-of-the-server]__058vuwy._.js")
+R.c("server/chunks/08i2_e066572123aa9aa42123db943fd1456b5e05b85f_src_lib_intelligence_context_ts_0d00gx.._.js")
+R.c("server/chunks/[root-of-the-server]__0mr7pv7._.js")
+R.c("server/chunks/01i~_ake-home-e066572123aa9aa42123db943fd1456b5e05b85f_src_lib_schemas_api_ts_0_2qtz2._.js")
+R.c("server/chunks/0j9p__next-internal_server_app_api_race-prediction_route_actions_06_akd3.js")
+R.m(8973)
+module.exports=R.m(8973).exports
