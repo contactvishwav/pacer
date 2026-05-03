@@ -9,6 +9,7 @@ import { prisma } from '../../../../../../lib/db/prisma'
 import { buildCoachContext } from '../../../../../../lib/intelligence/context'
 import { buildSystemPrompt } from '../../../../../../lib/coach/system-prompt'
 import { anthropic, COACH_MODEL } from '../../../../../../lib/coach/claude'
+import { buildDeterministicCoachingResponse } from '../../../../../../lib/coach/deterministic'
 import { apiSuccess, apiError } from '../../../../../../lib/schemas/api'
 
 export const runtime    = 'nodejs'
@@ -118,6 +119,35 @@ export async function POST(
     data: { conversationId, role: 'USER', content: userMessage },
   })
 
+  // ── Gap 2A: deterministic fallback when API key is absent ─────────────────
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn('[Pacer] ANTHROPIC_API_KEY not configured — using deterministic coaching fallback')
+    const fallbackText = buildDeterministicCoachingResponse(coachCtx)
+    const enc = new TextEncoder()
+    const fallbackStream = new ReadableStream({
+      async start(controller) {
+        controller.enqueue(enc.encode('__FALLBACK__\n'))
+        const tokens = fallbackText.split(' ')
+        for (const token of tokens) {
+          controller.enqueue(enc.encode(token + ' '))
+          await new Promise(r => setTimeout(r, 20))
+        }
+        controller.close()
+      },
+    })
+    await prisma.coachMessage.create({
+      data: {
+        conversationId,
+        role:       'ASSISTANT',
+        content:    fallbackText,
+        tokenCount: Math.ceil(fallbackText.length / 4),
+      },
+    })
+    return new Response(fallbackStream, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
+  }
+
   const encoder  = new TextEncoder()
   let   fullText = ''
 
@@ -158,12 +188,30 @@ export async function POST(
           },
         })
 
+        controller.close()
+
       } catch (err) {
-        console.error('[Pacer] Coach stream error:', err)
-        controller.enqueue(
-          encoder.encode('\n\n[Coach unavailable — please try again]'),
-        )
-      } finally {
+        console.error('[Pacer] Claude API call failed — using deterministic coaching fallback', err)
+        const fallbackText = buildDeterministicCoachingResponse(coachCtx)
+        const combinedContent = fullText
+          ? fullText + '\n\n' + fallbackText
+          : fallbackText
+
+        const tokens = fallbackText.split(' ')
+        for (const token of tokens) {
+          controller.enqueue(encoder.encode(token + ' '))
+          await new Promise(r => setTimeout(r, 20))
+        }
+
+        await prisma.coachMessage.create({
+          data: {
+            conversationId,
+            role:       'ASSISTANT',
+            content:    combinedContent,
+            tokenCount: Math.ceil(combinedContent.length / 4),
+          },
+        })
+
         controller.close()
       }
     },
