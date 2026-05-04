@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Empty } from '@/components/empty'
 import { ErrorState } from '@/components/error'
 import { cn } from '@/lib/utils'
+
+const PAGE_SIZE = 20
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +31,10 @@ interface Activity {
 interface ActivitiesData {
   activities: Activity[]
   total: number
+  page: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -84,7 +91,6 @@ function ActivitiesSkeleton() {
       </div>
       <Card className="border-border bg-card">
         <CardContent className="p-0">
-          {/* Header row */}
           <div className="border-b border-border px-4 py-3">
             <div className="flex gap-4">
               {[80, 60, 160, 60, 60, 48, 60, 64].map((w, i) => (
@@ -106,11 +112,17 @@ function ActivitiesSkeleton() {
           ))}
         </CardContent>
       </Card>
+      {/* Pagination skeleton */}
+      <div className="flex items-center justify-center gap-3">
+        <Skeleton className="h-9 w-28 rounded-md bg-muted" />
+        <Skeleton className="h-4 w-20 bg-muted" />
+        <Skeleton className="h-9 w-20 rounded-md bg-muted" />
+      </div>
     </div>
   )
 }
 
-// ─── Activities table ──────────────────────────────────────────────────────────
+// ─── Activity row ─────────────────────────────────────────────────────────────
 
 interface ActivityRowProps {
   activity: Activity
@@ -127,7 +139,7 @@ function ActivityRow({ activity, onClick }: ActivityRowProps) {
       onClick={onClick}
       className="cursor-pointer border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
     >
-      <td className="py-3.5 pl-4 pr-4 text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+      <td className="whitespace-nowrap py-3.5 pl-4 pr-4 text-xs tabular-nums text-muted-foreground">
         {formatDate(activity.date)}
       </td>
       <td className="py-3.5 pr-4">
@@ -135,19 +147,19 @@ function ActivityRow({ activity, onClick }: ActivityRowProps) {
           {workoutTypeLabel(activity.workoutType)}
         </span>
       </td>
-      <td className="py-3.5 pr-4 text-sm text-foreground/90 max-w-[180px] truncate">
+      <td className="max-w-[180px] truncate py-3.5 pr-4 text-sm text-foreground/90">
         {activity.name}
       </td>
-      <td className="py-3.5 pr-4 tabular-nums text-sm text-foreground/80 whitespace-nowrap">
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
         {activity.distanceKm.toFixed(1)} km
       </td>
-      <td className="py-3.5 pr-4 tabular-nums text-sm text-foreground/80 whitespace-nowrap">
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
         {activity.avgPaceFormatted}
       </td>
-      <td className="py-3.5 pr-4 tabular-nums text-sm text-foreground/80 whitespace-nowrap">
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
         {activity.avgHR != null ? `${activity.avgHR} bpm` : <span className="text-muted-foreground">—</span>}
       </td>
-      <td className="py-3.5 pr-4 tabular-nums text-sm text-foreground/80 whitespace-nowrap">
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
         {activity.durationMinutes} min
       </td>
       <td className="py-3.5 pr-4">
@@ -156,26 +168,32 @@ function ActivityRow({ activity, onClick }: ActivityRowProps) {
             {exec.label}
           </span>
         ) : (
-          <span className="text-muted-foreground text-xs">—</span>
+          <span className="text-xs text-muted-foreground">—</span>
         )}
       </td>
     </tr>
   )
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Main content (uses useSearchParams — requires Suspense parent) ────────────
 
-export default function ActivitiesPage() {
+function ActivitiesContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const currentPage = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+
   const [data, setData] = useState<ActivitiesData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchActivities = useCallback(async () => {
+  const tableRef = useRef<HTMLDivElement>(null)
+
+  const fetchPage = useCallback(async (page: number) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/activities?limit=20')
+      const res = await fetch(`/api/activities?limit=${PAGE_SIZE}&page=${page}`)
       if (res.status === 404) {
         setData(null)
         setLoading(false)
@@ -190,13 +208,37 @@ export default function ActivitiesPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load activities'
       setError(msg)
-      toast.error(msg)
+      toast.error('Something went wrong loading your activities. Please try again.')
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => { fetchActivities() }, [fetchActivities])
+  // Fetch whenever the URL page changes
+  useEffect(() => {
+    fetchPage(currentPage)
+  }, [currentPage, fetchPage])
+
+  // Scroll table into view on page change (skip on first load)
+  const isFirstLoad = useRef(true)
+  useEffect(() => {
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false
+      return
+    }
+    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [currentPage])
+
+  function goToPage(page: number) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (page === 1) {
+      params.delete('page')
+    } else {
+      params.set('page', String(page))
+    }
+    const qs = params.toString()
+    router.push(`/activities${qs ? `?${qs}` : ''}`)
+  }
 
   if (loading) return <ActivitiesSkeleton />
 
@@ -204,24 +246,32 @@ export default function ActivitiesPage() {
     return (
       <ErrorState
         message="Something went wrong loading your activities. Please try again."
-        onRetry={fetchActivities}
+        onRetry={() => fetchPage(currentPage)}
       />
     )
   }
 
   if (!data || data.activities.length === 0) {
-    return (
-      <Empty
-        title="No activities found"
-        description="No training data yet. The app uses a generated training dataset — contact the developer to set up the demo environment."
-      />
-    )
+    if (!data || data.total === 0) {
+      return (
+        <Empty
+          title="No activities found"
+          description="No training data yet. The app uses a generated training dataset — contact the developer to set up the demo environment."
+        />
+      )
+    }
+    // Page out of range — bounce to page 1
+    goToPage(1)
+    return <ActivitiesSkeleton />
   }
+
+  const firstItem = (currentPage - 1) * PAGE_SIZE + 1
+  const lastItem  = firstItem + data.activities.length - 1
 
   return (
     <div className="animate-in fade-in space-y-6 duration-500">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" ref={tableRef}>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Activities</h1>
         <span className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
           {data.total}
@@ -238,7 +288,7 @@ export default function ActivitiesPage() {
                   {['Date', 'Type', 'Activity', 'Distance', 'Pace', 'HR', 'Duration', 'Execution'].map(h => (
                     <th
                       key={h}
-                      className="pb-3 pl-4 pr-4 pt-3 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground first:pl-4 last:pr-4"
+                      className="pb-3 pl-4 pr-4 pt-3 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
                     >
                       {h}
                     </th>
@@ -259,11 +309,54 @@ export default function ActivitiesPage() {
         </CardContent>
       </Card>
 
-      {data.total > 20 && (
-        <p className="text-center text-xs text-muted-foreground">
-          Showing 20 of {data.total} activities
+      {/* Pagination controls */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={!data.hasPrevPage}
+            className="border-border text-foreground hover:bg-muted disabled:opacity-40"
+          >
+            <svg className="mr-1.5 h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+            </svg>
+            Previous
+          </Button>
+
+          <span className="min-w-[80px] text-center text-sm font-medium tabular-nums text-foreground">
+            Page {currentPage} of {data.totalPages}
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={!data.hasNextPage}
+            className="border-border text-foreground hover:bg-muted disabled:opacity-40"
+          >
+            Next
+            <svg className="ml-1.5 h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m13.5 4.5 7.5 7.5m0 0-7.5 7.5M21 12H3" />
+            </svg>
+          </Button>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Showing {firstItem}–{lastItem} of {data.total} activities
         </p>
-      )}
+      </div>
     </div>
+  )
+}
+
+// ─── Page export — Suspense required for useSearchParams ──────────────────────
+
+export default function ActivitiesPage() {
+  return (
+    <Suspense fallback={<ActivitiesSkeleton />}>
+      <ActivitiesContent />
+    </Suspense>
   )
 }

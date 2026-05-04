@@ -1,7 +1,8 @@
-// GET /api/activities?limit=N
+// GET /api/activities?limit=N&page=P
 //
 // Paginated list of activities for the seeded athlete.
-// limit: 1–50, default 20.
+// limit: 1–100, default 20.
+// page: 1-based page number, default 1.
 
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/db/prisma'
@@ -42,17 +43,25 @@ export async function GET(request: Request) {
 
   try {
     const { searchParams } = new URL(request.url)
-    const raw   = parseInt(searchParams.get('limit') ?? '20', 10)
-    const limit = Math.min(Math.max(isNaN(raw) ? 20 : raw, 1), 50)
+
+    const rawLimit = parseInt(searchParams.get('limit') ?? '20', 10)
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 20 : rawLimit, 1), 100)
+
+    const rawPage = parseInt(searchParams.get('page') ?? '1', 10)
+    const page = Math.max(isNaN(rawPage) ? 1 : rawPage, 1)
+    const offset = (page - 1) * limit
 
     const [activities, total] = await Promise.all([
       prisma.activity.findMany({
         where:   { athleteId: athlete.id },
         orderBy: { startedAt: 'desc' },
+        skip:    offset,
         take:    limit,
       }),
       prisma.activity.count({ where: { athleteId: athlete.id } }),
     ])
+
+    const totalPages = Math.max(1, Math.ceil(total / limit))
 
     return NextResponse.json(apiSuccess({
       activities: activities.map(a => {
@@ -72,6 +81,10 @@ export async function GET(request: Request) {
         }
       }),
       total,
+      page,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     }))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
