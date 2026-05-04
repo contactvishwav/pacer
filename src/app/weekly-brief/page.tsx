@@ -129,7 +129,7 @@ function StatChip({
         className,
       )}
     >
-      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
         {label}
       </span>
       <div className="mt-1 min-w-0 truncate text-sm font-semibold tabular-nums text-inherit">
@@ -346,12 +346,12 @@ export default function WeeklyBriefPage() {
               </svg>
               Last week
             </CardTitle>
-            <p className="text-xs text-muted-foreground/80">What we saw in your training</p>
+            <p className="text-xs text-zinc-400">What we saw in your training</p>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
               {brief.lastWeekReview.map((item, i) => (
-                <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-foreground/85">
+                <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-foreground/80">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-400/50" />
                   <span>{item}</span>
                 </li>
@@ -398,7 +398,7 @@ export default function WeeklyBriefPage() {
       <Card className="border border-primary/30 bg-gradient-to-br from-primary/5 to-card">
         <CardContent className="py-8">
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/80">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">
               Coach&apos;s focus for this week
             </p>
             <p className="text-lg font-bold text-foreground">Where to put your energy</p>

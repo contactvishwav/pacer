@@ -67,7 +67,7 @@ function ChatHeader({ activityLabel }: ChatHeaderProps) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-0.5">
           <h1 className="text-lg font-bold tracking-tight text-foreground">Pacer Coach</h1>
-          <p className="text-xs text-muted-foreground">AI-powered training intelligence</p>
+          <p className="text-xs text-zinc-300">AI-powered training intelligence</p>
         </div>
         <span className="rounded-full border border-amber-500/30 bg-amber-500/8 px-2.5 py-1 text-[10px] text-amber-400/90">
           Training guidance only, not medical advice.
@@ -432,7 +432,7 @@ export default function CoachPage() {
                   />
                 ))}
               </span>
-              <p className="text-xs text-muted-foreground">Connecting to coach…</p>
+              <p className="text-xs text-zinc-300">Connecting to coach…</p>
             </div>
           </div>
         ) : (
@@ -492,7 +492,7 @@ export default function CoachPage() {
           </Button>
         </div>
 
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+        <p className="mt-1.5 text-center text-[10px] text-zinc-400">
           {isStreaming
             ? 'Coach is responding…'
             : 'Enter to send · Shift+Enter for new line'}

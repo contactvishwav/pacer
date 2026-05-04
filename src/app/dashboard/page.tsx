@@ -502,9 +502,9 @@ function RacePredictionCard({ racePrediction, goalRace }: RacePredictionCardProp
               <div className="text-4xl font-bold tabular-nums tracking-tight text-foreground">
                 {racePrediction.predictedTimeFormatted}
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
+              <div className="mt-1 text-xs text-zinc-300">
                 {racePrediction.confidenceLowFormatted}
-                <span className="mx-1.5 text-muted-foreground/40">—</span>
+                <span className="mx-1.5 text-zinc-500">—</span>
                 {racePrediction.confidenceHighFormatted}
               </div>
             </div>
@@ -517,7 +517,7 @@ function RacePredictionCard({ racePrediction, goalRace }: RacePredictionCardProp
             )}
 
             {/* What needs to happen */}
-            <p className="text-sm text-muted-foreground">{racePrediction.whatNeedsToHappen}</p>
+            <p className="text-sm text-foreground/85">{racePrediction.whatNeedsToHappen}</p>
 
             {/* Confidence score */}
             <div>
@@ -539,7 +539,7 @@ function RacePredictionCard({ racePrediction, goalRace }: RacePredictionCardProp
 
             {/* Goal time reference */}
             {goalRace && goalRace.goalTimeFormatted !== '—' && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-zinc-300">
                 Goal: <span className="font-semibold text-foreground">{goalRace.goalTimeFormatted}</span>
               </p>
             )}
@@ -574,7 +574,7 @@ function WeeklyBriefCard({ weeklyBrief }: WeeklyBriefCardProps) {
       <CardContent className="space-y-4">
         {/* Key signal callout */}
         <div className="rounded-md border border-primary/25 bg-primary/8 px-3 py-2.5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary/80">Key Signal</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Key Signal</p>
           <p className="mt-0.5 text-sm text-foreground/90">{weeklyBrief.keySignal}</p>
         </div>
 
@@ -602,8 +602,8 @@ function WeeklyBriefCard({ weeklyBrief }: WeeklyBriefCardProps) {
           </p>
           <ul className="space-y-1">
             {weeklyBrief.lastWeekReview.map((item, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-zinc-400/50" />
                 {item}
               </li>
             ))}

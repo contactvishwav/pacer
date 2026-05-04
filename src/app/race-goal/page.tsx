@@ -161,7 +161,7 @@ function ConfidenceIntervalBar({
 
   return (
     <div className="space-y-3">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-300">
         Projected range (confidence band)
       </p>
       <div className="relative mt-1 h-14 w-full">
@@ -180,11 +180,11 @@ function ConfidenceIntervalBar({
       </div>
       <div className="flex items-start justify-between gap-4 text-[11px]">
         <div>
-          <p className="text-muted-foreground">Optimistic trajectory</p>
+          <p className="text-zinc-300">Optimistic trajectory</p>
           <p className="font-semibold tabular-nums text-green-400">{lowLabel}</p>
         </div>
         <div className="text-right">
-          <p className="text-muted-foreground">Pessimistic trajectory</p>
+          <p className="text-zinc-300">Pessimistic trajectory</p>
           <p className="font-semibold tabular-nums text-amber-400/90">{highLabel}</p>
         </div>
       </div>
@@ -341,13 +341,13 @@ export default function RaceGoalPage() {
             prediction.confidenceHighFormatted !== '—' ? (
               <>
                 <div>
-                  <p className="text-[11px] text-muted-foreground">Projected finish (estimated)</p>
+                  <p className="text-[11px] text-zinc-300">Projected finish (estimated)</p>
                   <p className="text-4xl font-bold tracking-tight tabular-nums text-foreground md:text-5xl">
                     {prediction.predictedTimeFormatted}
                   </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-2 text-xs text-zinc-300">
                     {prediction.confidenceLowFormatted}
-                    <span className="mx-1 text-muted-foreground/40">—</span>
+                    <span className="mx-1 text-zinc-500">—</span>
                     {prediction.confidenceHighFormatted}{' '}
                     <span className="italic">confidence range based on recent training.</span>
                   </p>
@@ -381,7 +381,7 @@ export default function RaceGoalPage() {
         {/* Card B — Confidence & data quality */}
         <Card className="border-border bg-card">
           <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
               Prediction confidence
             </CardTitle>
           </CardHeader>
@@ -421,8 +421,8 @@ export default function RaceGoalPage() {
             )}
 
             {prediction.bestEffortActivity && (
-              <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-foreground/85">
-                <span className="font-medium text-muted-foreground">Based on:</span>{' '}
+              <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-zinc-300">
+                <span className="font-medium text-zinc-300">Based on:</span>{' '}
                 {prediction.bestEffortActivity.date},{' '}
                 {prediction.bestEffortActivity.distanceKm} km{' '}
                 {workoutTypeShort(prediction.bestEffortActivity.workoutType)} at{' '}
@@ -453,12 +453,12 @@ export default function RaceGoalPage() {
 
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
             Supporting signals
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-[11px] text-muted-foreground">
+          <p className="mb-4 text-[11px] text-zinc-400">
             Estimated projection weighs these signals alongside your qualifying efforts.
           </p>
           <div className="flex flex-wrap gap-2">
