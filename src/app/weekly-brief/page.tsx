@@ -351,8 +351,8 @@ export default function WeeklyBriefPage() {
           <CardContent>
             <ul className="space-y-3">
               {brief.lastWeekReview.map((item, i) => (
-                <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-muted-foreground">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40" />
+                <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-foreground/85">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-400/50" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -376,7 +376,7 @@ export default function WeeklyBriefPage() {
           <CardContent>
             <ul className="space-y-3">
               {brief.thisWeekPrescription.map((item, i) => (
-                <li key={i} className="flex gap-2.5 text-sm font-medium leading-relaxed text-foreground/90">
+                <li key={i} className="flex gap-2.5 text-sm font-medium leading-relaxed text-foreground">
                   <svg
                     className="mt-0.5 h-4 w-4 shrink-0 text-primary/80"
                     fill="none"
@@ -403,7 +403,7 @@ export default function WeeklyBriefPage() {
             </p>
             <p className="text-lg font-bold text-foreground">Where to put your energy</p>
           </div>
-          <p className="mt-4 text-base italic leading-relaxed text-foreground/85 md:text-[17px]">
+          <p className="mt-4 text-base italic leading-relaxed text-foreground/80 md:text-[17px]">
             {brief.suggestedFocus}
           </p>
           <div className="mt-6">

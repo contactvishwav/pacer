@@ -139,7 +139,7 @@ function ActivityRow({ activity, onClick }: ActivityRowProps) {
       onClick={onClick}
       className="cursor-pointer border-b border-border/50 transition-colors last:border-0 hover:bg-muted/25"
     >
-      <td className="whitespace-nowrap py-3.5 pl-4 pr-4 text-xs tabular-nums text-muted-foreground">
+      <td className="whitespace-nowrap py-3.5 pl-4 pr-4 text-xs tabular-nums text-zinc-400">
         {formatDate(activity.date)}
       </td>
       <td className="py-3.5 pr-4">
@@ -147,19 +147,19 @@ function ActivityRow({ activity, onClick }: ActivityRowProps) {
           {workoutTypeLabel(activity.workoutType)}
         </span>
       </td>
-      <td className="max-w-[180px] truncate py-3.5 pr-4 text-sm text-foreground/90">
+      <td className="max-w-[180px] truncate py-3.5 pr-4 text-sm text-foreground">
         {activity.name}
       </td>
-      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/90">
         {activity.distanceKm.toFixed(1)} km
       </td>
-      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/90">
         {activity.avgPaceFormatted}
       </td>
-      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
-        {activity.avgHR != null ? `${activity.avgHR} bpm` : <span className="text-muted-foreground">—</span>}
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/90">
+        {activity.avgHR != null ? `${activity.avgHR} bpm` : <span className="text-zinc-400">—</span>}
       </td>
-      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/80">
+      <td className="whitespace-nowrap py-3.5 pr-4 tabular-nums text-sm text-foreground/90">
         {activity.durationMinutes} min
       </td>
       <td className="py-3.5 pr-4">
@@ -343,7 +343,7 @@ function ActivitiesContent() {
           </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-zinc-400">
           Showing {firstItem}–{lastItem} of {data.total} activities
         </p>
       </div>

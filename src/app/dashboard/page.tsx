@@ -228,7 +228,7 @@ function PhaseCard({ phase, goalRace, trainingLoad }: PhaseCardProps) {
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
-        <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
           Training Phase
         </CardTitle>
       </CardHeader>
@@ -301,7 +301,7 @@ function PhaseCard({ phase, goalRace, trainingLoad }: PhaseCardProps) {
             <span className={cn('text-lg font-semibold tabular-nums', tsbColorClass)}>
               {tsbValue > 0 ? '+' : ''}{tsbValue}
             </span>
-            <span className="mt-0.5 text-[8px] leading-tight text-muted-foreground/50">
+            <span className="mt-0.5 text-[8px] leading-tight text-zinc-400">
               Positive = fresh · Negative = fatigued
             </span>
           </div>
@@ -406,7 +406,7 @@ function InjuryRiskCard({ injuryRisk }: InjuryRiskCardProps) {
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
-        <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
           Training-Load Risk Signal
         </CardTitle>
       </CardHeader>
@@ -429,7 +429,7 @@ function InjuryRiskCard({ injuryRisk }: InjuryRiskCardProps) {
         <ACWRZoneBar acwr={injuryRisk.acwr} />
 
         {/* Explanation — cautious language, no "injury" */}
-        <p className="text-sm text-muted-foreground">{injuryRisk.explanation}</p>
+        <p className="text-sm text-foreground/85">{injuryRisk.explanation}</p>
 
         {/* Coach recommendation box */}
         <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5">
@@ -458,7 +458,7 @@ function InjuryRiskCard({ injuryRisk }: InjuryRiskCardProps) {
             </p>
             <ul className="space-y-1.5">
               {injuryRisk.contributingFactors.map((factor, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                <li key={i} className="flex items-start gap-2 text-xs text-zinc-300">
                   <span className="shrink-0 text-[11px] leading-[1.3]">{factorIcon(factor)}</span>
                   {factor}
                 </li>
@@ -486,7 +486,7 @@ function RacePredictionCard({ racePrediction, goalRace }: RacePredictionCardProp
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
             Race Prediction
           </CardTitle>
           {goalRace && (
@@ -567,7 +567,7 @@ function WeeklyBriefCard({ weeklyBrief }: WeeklyBriefCardProps) {
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
-        <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
           Weekly Brief
         </CardTitle>
       </CardHeader>
@@ -647,7 +647,7 @@ function RecentWorkoutsSection({ activities }: RecentWorkoutsSectionProps) {
     return (
       <Card className="border-border bg-card md:col-span-2">
         <CardHeader className="pb-3">
-          <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
             Recent Workouts
           </CardTitle>
         </CardHeader>
@@ -661,7 +661,7 @@ function RecentWorkoutsSection({ activities }: RecentWorkoutsSectionProps) {
   return (
     <Card className="border-border bg-card md:col-span-2">
       <CardHeader className="pb-3">
-        <CardTitle className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <CardTitle className="text-xs font-medium uppercase tracking-widest text-zinc-300">
           Recent Workouts
         </CardTitle>
       </CardHeader>

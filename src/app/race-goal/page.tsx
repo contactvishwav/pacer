@@ -404,7 +404,7 @@ export default function RaceGoalPage() {
               )}
             />
 
-            <p className="text-sm text-muted-foreground">{prediction.explanation}</p>
+            <p className="text-sm text-foreground/85">{prediction.explanation}</p>
 
             {prediction.dataQualityNotes.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -494,7 +494,7 @@ export default function RaceGoalPage() {
               <span className="ml-1 font-semibold tabular-nums text-foreground">
                 {supportingSignals.weeksOfData} weeks
               </span>{' '}
-              <span className="text-muted-foreground">of training summaries</span>
+              <span className="text-zinc-400">of training summaries</span>
             </Badge>
           </div>
         </CardContent>
