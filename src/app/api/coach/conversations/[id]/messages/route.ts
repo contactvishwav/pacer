@@ -31,7 +31,6 @@ async function maybeExtractMemory(
   conversationId:    string,
   userMessage:       string,
   assistantResponse: string,
-  messageCount:      number,
 ): Promise<void> {
   if (!process.env.ANTHROPIC_API_KEY) return
 
@@ -48,16 +47,27 @@ Coach response: "${assistantResponse.slice(0, 500)}"
 
 Does this turn contain durable athlete context worth remembering across future sessions? Examples of durable context: injury history, training preferences, schedule constraints, personal goals, race history.
 
-If yes, respond with ONLY a 1-2 sentence structured summary starting with "Athlete: ". Example: "Athlete prefers morning runs and has a history of left knee pain that flares during high-mileage weeks."
+Respond with ONLY one of:
+1. The word: null
+2. A summary starting with exactly "Athlete: " (capital A, colon, space — no preamble before it)
 
-If no durable context, respond with exactly: null`,
+Valid example: "Athlete: prefers morning runs and has a history of left knee pain that flares during high-mileage weeks."
+Invalid: "Athlete prefers..." (missing colon) or "Sure! Athlete: ..." (has preamble)`,
       }],
     })
 
     const content = extractionResponse.content[0]
     if (content.type !== 'text') return
     const text = content.text.trim()
-    if (text === 'null' || !text.startsWith('Athlete:')) return
+    if (text === 'null' || !text.startsWith('Athlete: ')) return
+
+    // Isolated try-catch so a count failure never surfaces to the outer catch
+    let messageCount = 0
+    try {
+      messageCount = await prisma.coachMessage.count({ where: { conversationId } })
+    } catch {
+      // non-fatal — use 0 as fallback turn marker
+    }
 
     await prisma.coachMemory.create({
       data: {
@@ -247,8 +257,7 @@ export async function POST(
 
         // Fire-and-forget memory extraction — runs after stream is closed,
         // never blocks the response.
-        const msgCount = await prisma.coachMessage.count({ where: { conversationId } })
-        void maybeExtractMemory(athlete.id, conversationId, userMessage, fullText, msgCount)
+        void maybeExtractMemory(athlete.id, conversationId, userMessage, fullText)
 
         controller.close()
 
