@@ -4,6 +4,7 @@
 // Streaming format: plain UTF-8 text chunks.
 // Suggested follow-up question appears on the last line prefixed with "→ ".
 
+import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../../../lib/db/prisma'
 import { buildCoachContext } from '../../../../../../lib/intelligence/context'
@@ -187,7 +188,9 @@ export async function POST(
   })
 
   // ── Gap 2A: deterministic fallback when API key is absent ─────────────────
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  const keyIsMissing = !apiKey || apiKey.trim() === ''
+  if (keyIsMissing) {
     console.warn('[Pacer] ANTHROPIC_API_KEY not configured — using deterministic coaching fallback')
     const fallbackText = buildDeterministicCoachingResponse(coachCtx)
     const enc = new TextEncoder()
@@ -261,8 +264,16 @@ export async function POST(
 
         controller.close()
 
-      } catch (err) {
-        console.error('[Pacer] Claude API call failed — using deterministic coaching fallback', err)
+      } catch (error: unknown) {
+        const isAuthError = error instanceof Anthropic.AuthenticationError
+
+        if (isAuthError) {
+          console.warn('[Pacer] Anthropic API authentication failed — using deterministic fallback')
+          controller.enqueue(encoder.encode('__FALLBACK__\n'))
+        } else {
+          console.error('[Pacer] Claude API call failed — using deterministic fallback', error)
+        }
+
         const fallbackText = buildDeterministicCoachingResponse(coachCtx)
         const combinedContent = fullText
           ? fullText + '\n\n' + fallbackText
