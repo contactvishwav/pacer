@@ -44,7 +44,7 @@ Strava labels workouts by sport type (run, ride, swim). It does not classify wor
 
 ## Technical Architecture
 
-**Stack:** Next.js 15 App Router, TypeScript strict mode, Tailwind CSS v4 + shadcn/ui, Prisma v6 (pinned — see §Prisma v6 Decision), Supabase Postgres (pooled connection for runtime, direct connection for CLI migrations), Anthropic Claude API (`claude-sonnet-4-6` default, overridable via `ANTHROPIC_MODEL` env), Vercel.
+**Stack:** Next.js 16 App Router, TypeScript strict mode, Tailwind CSS v4 + shadcn/ui, Prisma v6 (pinned — see §Prisma v6 Decision), Supabase Postgres (pooled connection for runtime, direct connection for CLI migrations), Anthropic Claude API (`claude-sonnet-4-6` default, overridable via `ANTHROPIC_MODEL` env), Vercel.
 
 **Unified intelligence context:** The central abstraction is `buildAthleteIntelligenceContext(athleteId)`. Every page in the app needs some version of the same signals — training phase, ACWR, race prediction, recent workout types. Computing these independently per route would produce duplicated logic, inconsistent results, and redundant database roundtrips per page load. The context builder computes everything once and returns a typed object covering athlete profile, current phase (with confidence and coaching implication), training load (ATL, CTL, TSB, ACWR, trend), injury risk (category, ACWR value, contributing factors, recommended action), race prediction (projected time, confidence band, gap to goal, adjustment notes), and recent workouts. `buildCoachContext(athleteId, activityId?)` extends this with the bounded conversation history, a memory summary for older turns, and optional activity detail when `activityId` is provided.
 

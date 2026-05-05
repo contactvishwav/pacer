@@ -189,7 +189,7 @@ validate:classifier  All assertions passed
 |------|--------|--------|
 | RECOVERY phase in timeline arc | PARTIAL | RECOVERY is a transient override, not a sequential training phase. The arc (BASE→BUILD→PEAK→TAPER→RACE) represents the planned training journey; the badge and coaching implication still display correctly when RECOVERY fires. |
 | Strava integration | NOT IMPLEMENTED | Per AGENT_GUIDELINES: Strava is optional; the full product must work from seeded data. Reviewer can evaluate every dimension without Strava credentials. |
-| Coach memory persistence | PARTIAL | CoachMemory records are seeded (1 memory present), read by `buildCoachContext`, and surface in the system prompt. The memory-write path (creating new memories from conversations) is not implemented in this slice — coach responses can inform memory via manual seeding only. |
+| Coach memory persistence | PASS | CoachMemory records are seeded (1 memory present), read by `buildCoachContext`, and surface in the system prompt. `maybeExtractMemory()` — a fire-and-forget secondary Claude call — runs after each successful coaching turn and writes new `CoachMemory` records when durable context is detected. Memory is fully implemented end-to-end. |
 
 ---
 

@@ -1,3 +1,3 @@
 # Video Walkthrough
 
-<replace with your Loom link or Google Drive URL>
+[Loom link to be added after recording — see docs/VIDEO_SCRIPT.md]
