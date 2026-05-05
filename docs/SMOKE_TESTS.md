@@ -17,12 +17,40 @@ curl -s http://localhost:3000/api/weekly-brief | python3 -m json.tool | head -40
 ## Race Prediction
 curl -s http://localhost:3000/api/race-prediction | python3 -m json.tool | head -40
 
-## Create Coach Conversation
+## Coach Sessions
+
+### List sessions
+curl -s http://localhost:3000/api/coach/sessions | python3 -m json.tool
+
+### Create a new session
+curl -s -X POST http://localhost:3000/api/coach/sessions | python3 -m json.tool
+# Note the "id" field in the response — use it as SESSION_ID below
+
+### Get messages for a session
+# Replace SESSION_ID with the id from the create response above
+curl -s http://localhost:3000/api/coach/sessions/SESSION_ID/messages | python3 -m json.tool
+
+### Send a message to a session (streaming)
+curl -s -X POST http://localhost:3000/api/coach/sessions/SESSION_ID/messages \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How is my training going?"}' \
+  --no-buffer
+
+### Rename a session
+curl -s -X PATCH http://localhost:3000/api/coach/sessions/SESSION_ID \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Race-week planning"}' | python3 -m json.tool
+
+### Delete a session
+curl -s -X DELETE http://localhost:3000/api/coach/sessions/SESSION_ID -v
+# Expect HTTP 204 No Content
+
+## Create Coach Conversation (legacy — backward-compat)
 curl -s -X POST http://localhost:3000/api/coach/conversations \
   -H "Content-Type: application/json" \
   -d '{"contextType":"GENERAL"}' | python3 -m json.tool
 
-## Send Coach Message (streaming)
+## Send Coach Message via legacy conversations route (streaming)
 # Replace CONVERSATION_ID with the id from the conversation response above
 curl -s -X POST http://localhost:3000/api/coach/conversations/CONVERSATION_ID/messages \
   -H "Content-Type: application/json" \

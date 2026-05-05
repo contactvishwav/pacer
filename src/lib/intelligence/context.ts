@@ -357,6 +357,7 @@ export async function buildAthleteIntelligenceContext(
 export async function buildCoachContext(
   athleteId: string,
   activityId?: string,
+  sessionId?: string,
 ): Promise<CoachContext> {
   // Step 1: full intelligence context
   const ctx = await buildAthleteIntelligenceContext(athleteId)
@@ -383,9 +384,15 @@ export async function buildCoachContext(
   }
 
   // Steps 3 & 4: conversation history and memories — parallel
+  // When sessionId is provided, scope history to that session only.
+  // Without sessionId (legacy routes), fall back to athlete-wide query.
+  const messageWhere = sessionId
+    ? { sessionId }
+    : { conversation: { athleteId } }
+
   const [rawMessages, memories] = await Promise.all([
     prisma.coachMessage.findMany({
-      where:   { conversation: { athleteId } },
+      where:   messageWhere,
       orderBy: { createdAt: 'desc' },
       take:    8,
     }),

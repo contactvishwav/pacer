@@ -108,6 +108,12 @@ An earlier implementation detected invalid API keys using heuristics: checking i
 
 *Commit: `ed52ef3 fix(coach): surface __FALLBACK__ sentinel on Anthropic 401 auth errors`*
 
+**Named sessions — session-scoped history, global memory**
+
+Added `CoachSession` model and a sessions sidebar to the coach page. The session architecture had one non-obvious tension: per-session `conversationHistory` vs. global `CoachMemory`. `conversationHistory` is scoped to `{ sessionId }` in `buildCoachContext` so each session is isolated. `CoachMemory` remains global so coaching context (injury preferences, training goals) extracted in one session surfaces in future sessions. Claude Code implemented the full feature — schema migration, data-access layer, 5 new API routes, and the two-panel sidebar UI. The architectural decision about which data to isolate and which to share was made manually.
+
+*Migration backfills all existing `CoachMessage` rows to a "Legacy" `CoachSession` via injected SQL in the generated migration file — no data loss.*
+
 **Prisma v7 breaking changes caught before installation**
 
 The initial stack recommendation assumed the latest Prisma version. Cross-checking confirmed that Prisma v7 had introduced breaking changes to datasource configuration, driver adapters, client imports, and seed behavior simultaneously. This was caught before any code was written and Prisma v6 was explicitly pinned in `AGENT_GUIDELINES.md`.

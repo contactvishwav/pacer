@@ -8,6 +8,7 @@
 //   3. buildCoachContext (with activityId) — selectedActivity is populated
 //   4. estimateContextTokens < 2,500
 //   5. Prints a structured summary of the full context
+//   6. buildCoachContext (with sessionId) — conversationHistory scoped to session
 
 import { PrismaClient } from '@prisma/client'
 import {
@@ -246,6 +247,63 @@ async function main() {
     console.log(`    Avg pace:  ${coachCtxWithActivity.selectedActivity.avgPaceFormatted}`)
     console.log(`    Exec eval: ${coachCtxWithActivity.selectedActivity.executionEvaluation?.slice(0, 60) ?? '—'}`)
     console.log(`    Load:      ${coachCtxWithActivity.selectedActivity.trainingLoad.toFixed(1)}`)
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TEST 4: buildCoachContext — with sessionId (session-scoped history)
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('\n' + '─'.repeat(70))
+  console.log('buildCoachContext (sessionId = legacy session)')
+  console.log('─'.repeat(70))
+
+  // The migration creates a legacy session with id = 'legacy_' + athlete.id
+  const legacySessionId = `legacy_${athlete.id}`
+  const legacySession = await prisma.coachSession.findUnique({ where: { id: legacySessionId } })
+
+  if (!legacySession) {
+    console.warn('  SKIP  Legacy session not found — run `npx prisma migrate dev` to apply sessions migration')
+  } else {
+    const sessionMsgCount = await prisma.coachMessage.count({
+      where: { sessionId: legacySessionId },
+    })
+
+    const coachCtxSession = await buildCoachContext(athlete.id, undefined, legacySessionId)
+
+    console.log('\nAssertions:')
+    assert(
+      Array.isArray(coachCtxSession.conversationHistory),
+      'conversationHistory is an array when sessionId provided',
+      `${coachCtxSession.conversationHistory.length} messages`,
+    )
+
+    // History must be bounded to ≤ 8 messages (the take limit in context.ts)
+    assert(
+      coachCtxSession.conversationHistory.length <= 8,
+      'conversationHistory is bounded to ≤ 8 messages',
+      `${coachCtxSession.conversationHistory.length} returned`,
+    )
+
+    // If there are messages in the legacy session, history must be non-empty
+    if (sessionMsgCount > 0) {
+      assert(
+        coachCtxSession.conversationHistory.length > 0,
+        'conversationHistory is non-empty for session with messages',
+        `${sessionMsgCount} messages in DB, ${coachCtxSession.conversationHistory.length} in history`,
+      )
+    }
+
+    // Cross-session isolation: fetch a session that doesn't exist → should return empty history
+    const ghostSessionId = 'nonexistent_session_id_for_isolation_test'
+    const coachCtxGhost = await buildCoachContext(athlete.id, undefined, ghostSessionId)
+    assert(
+      Array.isArray(coachCtxGhost.conversationHistory) && coachCtxGhost.conversationHistory.length === 0,
+      'conversationHistory is empty for a session with no messages',
+      `${coachCtxGhost.conversationHistory.length} messages`,
+    )
+
+    console.log(`\n  Session:         ${legacySession.name} (${legacySessionId})`)
+    console.log(`  Messages in DB:  ${sessionMsgCount}`)
+    console.log(`  History length:  ${coachCtxSession.conversationHistory.length}`)
   }
 
   // ── Final result ──────────────────────────────────────────────────────────

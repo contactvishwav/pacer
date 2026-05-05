@@ -103,7 +103,7 @@ Walk through these pages in order to see all six intelligence dimensions:
 1. **Dashboard** (`/dashboard`) — all six dimensions at a glance: training phase, ACWR risk signal, race prediction, weekly focus, and suggested coach questions
 2. **Activities** (`/activities`) — paginated list; find the **March 8** entry with the red **Too Hard** badge (page 2) — that is the zone-mismatch run seeded with HR 157 against a Zone 2 ceiling of 145
 3. **Activity Detail** — click March 8 to see the Zone 2 warning callout, coaching intelligence panel, and the Ask Coach CTA that prefills the question in coach chat
-4. **Coach** (`/coach`) — ask *"How is my training going?"* and watch the streaming response with full training context; if no API key is configured, a deterministic fallback response streams instead
+4. **Coach** (`/coach`) — a two-panel interface: the left sidebar lists named chat sessions (create, rename, delete); the right panel is the streaming coach. Ask *"How is my training going?"* and watch the response stream with full training context. Each session maintains its own conversation history. If no API key is configured, a deterministic fallback response streams instead
 5. **Race Goal** (`/race-goal`) — Riegel-based half-marathon projection with the confidence interval bar, TSB adjustment note, and gap-to-goal analysis
 6. **Weekly Brief** (`/weekly-brief`) — the five-section deterministic Monday coaching brief, generated without a Claude call; the Ask Coach button prefills the key signal as a question
 

@@ -52,7 +52,7 @@ The classifier is anchored to absolute physiological thresholds — your Zone 2 
 
 Athlete Intelligence would have said your pace was above your 30-day average. Which is true, and useless. We say: the intent was easy, the execution wasn't, and here's what that costs you."
 
-[Click "Ask Coach about this workout" button]
+[Click "Ask Coach about this workout" button — the app opens /coach with the question pre-filled in a new named session]
 
 ---
 
@@ -106,11 +106,13 @@ The coaching context stays under 2,000 tokens. I designed this object manually �
 
 **Screen:** /coach
 
+[The coach page opens with the prefilled question already in a named session in the sidebar]
+
 [Click "How is my training going?" pill — do not pre-type, stream live]
 
 **Say while streaming:**
 
-"This is live. The coach has the full intelligence context loaded — training phase, ACWR, race goal, workout execution history. Watch it reference actual numbers."
+"The sidebar on the left lists named sessions — each one has its own isolated conversation history. The coach remembers context within a session and durable facts — injury history, training preferences — across all sessions. This is live. The coach has the full intelligence context loaded — training phase, ACWR, race goal, workout execution history. Watch it reference actual numbers."
 
 [Stream completes — point at specific numbers in the response]
 
