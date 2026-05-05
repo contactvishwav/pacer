@@ -9,16 +9,24 @@ import { apiSuccess, apiError } from '../../../../lib/schemas/api'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const athlete = await prisma.athlete.findFirst()
-  if (!athlete) {
+  try {
+    const athlete = await prisma.athlete.findFirst()
+    if (!athlete) {
+      return NextResponse.json(
+        apiError('No athlete data found. Run npx prisma db seed first.'),
+        { status: 404 },
+      )
+    }
+
+    const sessions = await listSessions(athlete.id)
+    return NextResponse.json(apiSuccess({ sessions }))
+  } catch (err) {
+    console.error('[Pacer] GET /api/coach/sessions error:', err)
     return NextResponse.json(
-      apiError('No athlete data found. Run npx prisma db seed first.'),
-      { status: 404 },
+      apiError(err instanceof Error ? err.message : String(err)),
+      { status: 500 },
     )
   }
-
-  const sessions = await listSessions(athlete.id)
-  return NextResponse.json(apiSuccess({ sessions }))
 }
 
 export async function POST() {
