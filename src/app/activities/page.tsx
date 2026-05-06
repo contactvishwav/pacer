@@ -192,8 +192,11 @@ function ActivitiesContent() {
   const fetchPage = useCallback(async (page: number) => {
     setLoading(true)
     setError(null)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     try {
-      const res = await fetch(`/api/activities?limit=${PAGE_SIZE}&page=${page}`)
+      const res = await fetch(`/api/activities?limit=${PAGE_SIZE}&page=${page}`, { signal: controller.signal })
+      clearTimeout(timeoutId)
       if (res.status === 404) {
         setData(null)
         setLoading(false)
@@ -206,9 +209,14 @@ function ActivitiesContent() {
       }
       setData(json.data)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load activities'
-      setError(msg)
-      toast.error('Something went wrong loading your activities. Please try again.')
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Loading took too long. Please refresh the page.')
+        toast.error('Request timed out — please refresh.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load activities')
+        toast.error('Something went wrong loading your activities. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

@@ -420,8 +420,11 @@ export default function ActivityDetailPage() {
     setLoading(true)
     setError(null)
     setNotFound(false)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     try {
-      const res = await fetch(`/api/activities/${id}/intelligence`)
+      const res = await fetch(`/api/activities/${id}/intelligence`, { signal: controller.signal })
+      clearTimeout(timeoutId)
       if (res.status === 404) {
         setNotFound(true)
         setLoading(false)
@@ -434,9 +437,15 @@ export default function ActivityDetailPage() {
       }
       setData(json.data)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load activity intelligence'
-      setError(msg)
-      toast.error(msg)
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Loading took too long. Please refresh the page.')
+        toast.error('Request timed out — please refresh.')
+      } else {
+        const msg = err instanceof Error ? err.message : 'Failed to load activity intelligence'
+        setError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }

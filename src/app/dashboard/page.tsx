@@ -823,8 +823,11 @@ export default function DashboardPage() {
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
     setError(null)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     try {
-      const res = await fetch('/api/dashboard')
+      const res = await fetch('/api/dashboard', { signal: controller.signal })
+      clearTimeout(timeoutId)
       if (res.status === 404) {
         setData(null)
         setLoading(false)
@@ -839,9 +842,15 @@ export default function DashboardPage() {
       }
       setData(json.data)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load dashboard'
-      setError(msg)
-      toast.error(msg)
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Loading took too long. Please refresh the page.')
+        toast.error('Request timed out — please refresh.')
+      } else {
+        const msg = err instanceof Error ? err.message : 'Failed to load dashboard'
+        setError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }

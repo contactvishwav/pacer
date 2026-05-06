@@ -154,8 +154,11 @@ export default function WeeklyBriefPage() {
     setLoading(true)
     setError(null)
     setIsEmpty(false)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     try {
-      const res = await fetch('/api/weekly-brief')
+      const res = await fetch('/api/weekly-brief', { signal: controller.signal })
+      clearTimeout(timeoutId)
       const json = (await res.json()) as
         | { success: true; data: WeeklyBriefData }
         | { success: false; error: string }
@@ -171,9 +174,15 @@ export default function WeeklyBriefPage() {
       }
 
       setData(json.data)
-    } catch {
-      setError('load_failed')
-      toast.error('Could not load your weekly brief. Please try again.')
+    } catch (err) {
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Loading took too long. Please refresh the page.')
+        toast.error('Request timed out — please refresh.')
+      } else {
+        setError('load_failed')
+        toast.error('Could not load your weekly brief. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
