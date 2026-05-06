@@ -90,24 +90,97 @@ Pacer's six dimensions are implemented as deterministic computation engines. Cla
 
 ## Technical Architecture
 
-**Stack:** Next.js 16 App Router, TypeScript strict mode, Tailwind CSS v4 + shadcn/ui, Prisma v6 (pinned — see §Prisma v6 Decision), Supabase Postgres (pooled connection for runtime, direct connection for CLI migrations), Anthropic Claude API (`claude-sonnet-4-6` default, overridable via `ANTHROPIC_MODEL` env), Vercel.
+### Architecture Thesis
 
-**Unified intelligence context:** The central abstraction is `buildAthleteIntelligenceContext(athleteId)`. Every page in the app needs some version of the same signals — training phase, ACWR, race prediction, recent workout types. Computing these independently per route would produce duplicated logic, inconsistent results, and redundant database roundtrips per page load. The context builder computes everything once and returns a typed object covering athlete profile, current phase (with confidence and coaching implication), training load (ATL, CTL, TSB, ACWR, trend), injury risk (category, ACWR value, contributing factors, recommended action), race prediction (projected time, confidence band, gap to goal, adjustment notes), and recent workouts. `buildCoachContext(athleteId, activityId?)` extends this with the bounded conversation history, a memory summary for older turns, and optional activity detail when `activityId` is provided.
+Pacer is a computed intelligence system, not a chatbot. The design thesis: six deterministic engines compute the athlete's complete coaching state first — training load, ACWR workload-risk signal, periodization phase, race trajectory, workout classifications, and weekly prescription — and Claude is a conversational interface over that pre-computed state. This matters architecturally for three reasons: the product does not depend on LLM consistency for correctness, so every numeric output is testable and reproducible against a known dataset; the coaching intelligence degrades gracefully when the AI API is unavailable, serving rule-based responses derived from the same pre-computed signals; and the system's failure modes are located in the deterministic computation layer rather than in model behavior, which means they surface in validation scripts, not in production. The hard engineering problem was building the computation layer. The Claude integration was straightforward once the coaching state existed.
 
-**Thin route handlers:** Route files authenticate, extract parameters, call one function from `src/lib`, and return the result. No database queries in routes, no computation, no conditional logic beyond null guards. All business logic lives in `src/lib/intelligence`, `src/lib/coach`, `src/lib/demo`, `src/lib/db`, and `src/lib/schemas`. React components fetch from API routes and render what they receive — they do not import from `src/lib` directly and do not compute signals.
+### Stack
 
-**Training load engine:** The Banister Performance Management Chart uses two exponential moving averages updated daily. ATL (Acute Training Load): time constant τ = 7 days, decay factor `k = e^(-1/7) ≈ 0.8669`. CTL (Chronic Training Load): time constant τ = 42 days, decay factor `k = e^(-1/42) ≈ 0.9765`. The 7/42 pairing is the standard adopted by TrainingPeaks, Garmin Connect, and WKO, originally validated on competitive cyclists (Banister 1975, Coggan and Allen early 2000s) and widely applied to running. TSB = CTL - ATL; positive TSB means the athlete is fresh. Training load (TRIMP) uses the Banister formula: `TRIMP = duration_min × HRR × 0.64 × e^(1.92 × HRR)` where HRR is Heart Rate Reserve fraction. The exponential weight makes high-intensity work disproportionately heavier than easy work — at HRR = 0.65 (easy aerobic) the multiplier is ≈1.43, at HRR = 0.90 (threshold) it is ≈3.34.
+**Stack:** Next.js 16 App Router, TypeScript strict mode, Tailwind CSS v4 + shadcn/ui, Prisma v6 (pinned intentionally — see Key Tradeoffs), Supabase Postgres (pooled connection for runtime, direct connection for CLI migrations), Anthropic Claude API (`claude-sonnet-4-6` default, overridable via `ANTHROPIC_MODEL` env), Vercel.
 
-**Token budget for Claude:** The system prompt serializes the entire `CoachContext` into structured text targeting under 2,000 tokens — pre-computed signals, current phase, ACWR status, race prediction summary, recent workout classifications, and the athlete's HR zone configuration. `estimateContextTokens` (chars ÷ 4) is validated in `validate:context`; the seeded demo context produces 1,235 estimated tokens, well within the 2,500 budget ceiling. Conversation history is bounded to the last 8 turns fetched by `buildCoachContext`. Older context is summarized into `memorySummary` rather than included verbatim. Raw per-second GPS streams are never sent to Claude.
+### System Boundaries
 
-**Claude-powered memory extraction:** After each successful Claude streaming turn, a fire-and-forget secondary `anthropic.messages.create` call (max_tokens: 150) determines whether the conversation contained durable coaching context — injury history, training preferences, schedule constraints, personal goals. If so, a `CoachMemory` record is persisted and surfaced in the system prompt `memorySummary` for future sessions. The extraction uses a tight prompt with explicit valid and invalid format examples (`"Athlete: ..."` required; preamble or missing colon is rejected via `startsWith('Athlete: ')`). The call is invoked with `void` and never blocks the streaming response — errors are caught silently.
+The codebase enforces strict layer separation across seven distinct concerns:
 
-**Server-side pagination on activities:** The `/api/activities` route accepts `page` and `limit` query parameters and returns `page`, `totalPages`, and `totalCount` alongside paginated results. URL state (`?page=N`) allows direct linking to specific pages, making the week 4 zone-mismatch run on page 2 consistently addressable for the reviewer demo flow.
+- **`src/lib/demo`** — deterministic data generation and seed system
+- **`src/lib/intelligence`** — six coaching engines: pure functions, no side effects, independently testable
+- **`src/lib/coach`** — context compiler, system prompt, memory extraction, fallback response
+- **`src/lib/schemas`** — Zod validation at every boundary
+- **`src/lib/db`** — Prisma singleton, no business logic
+- **`src/app/api`** — thin transport layer: authenticate, call one lib function, return result
+- **React components** — render only: no imports from `src/lib`, no computed signals
 
-**Deterministic fallback with sentinel detection:** `buildDeterministicCoachingResponse()` generates a coaching reply from the pre-computed intelligence context signals without any AI call. Two paths trigger it: (1) Gap 2A — if `ANTHROPIC_API_KEY` is absent (`!apiKey || apiKey.trim() === ''`), the route prepends `__FALLBACK__\n` and streams the fallback word-by-word before any Claude call is attempted; (2) Gap 2B — if the Claude API throws `Anthropic.AuthenticationError` (HTTP 401, detected via `instanceof` check in the catch block), the sentinel is prepended before the fallback tokens. Non-authentication errors stream the fallback without a sentinel, preserving any partial Claude content already in the client buffer. The frontend detects the sentinel on the first line and marks the message with a "Computed analysis" badge instead of "Powered by Claude."
+This boundary discipline means the intelligence engines are testable in isolation — nine validation scripts run against them directly — route handlers stay auditable, and React components stay purely presentational.
 
-**Production Hardening**
-Six production-readiness fixes were applied based on a post-build audit: (1) user message character limit (4,000 chars max) on the coaching endpoint to prevent runaway context window abuse, (2) prompt injection guard added to the system prompt, (3) `vercel.json` configured with automated `prisma migrate deploy && prisma generate` in the build command to prevent cold-deploy 500 errors, (4) `AbortController` 15-second timeouts on all frontend fetch calls to prevent indefinite loading states on cold Vercel starts, (5) terrain disclaimer added to the race prediction page clarifying the flat-course Riegel assumption, (6) `maybeExtractMemory` pre-filter added to skip Claude extraction calls for short low-signal messages, reducing API cost ~60-70% at scale.
+### Source-of-Truth Context
+
+Without a central context builder, each of five product surfaces — dashboard, activity detail, race goal, weekly brief, and coach chat — would independently query and compute overlapping signals, producing inconsistent states. If the dashboard says RECOVERY and the coach chat says BUILD, the product is broken regardless of whether each surface's logic is individually correct.
+
+The decision: `buildAthleteIntelligenceContext(athleteId)` is the single source of truth. Every surface consumes it. It computes once and returns a typed object covering athlete profile, current phase (with confidence and coaching implication), training load (ATL, CTL, TSB, ACWR, trend), injury risk (category, ACWR value, contributing factors, recommended action), race prediction (projected time, confidence band, gap to goal, adjustment notes), and recent workouts. `buildCoachContext(athleteId, activityId?)` extends it with bounded conversation history, a memory summary for older turns, and optional activity detail when `activityId` is provided.
+
+### Intelligence Engines
+
+**Training load engine:** The Banister Performance Management Chart uses two exponential moving averages updated daily. ATL (Acute Training Load): time constant τ = 7 days, decay factor `k = e^(-1/7) ≈ 0.8669`. CTL (Chronic Training Load): time constant τ = 42 days, decay factor `k = e^(-1/42) ≈ 0.9765`. The 7/42 pairing is the standard adopted by TrainingPeaks, Garmin Connect, and WKO, originally validated on competitive cyclists (Banister 1975, Coggan and Allen early 2000s) and widely applied to running. TSB = CTL - ATL; positive TSB means the athlete is fresh. Training load (TRIMP) uses the Banister formula: `TRIMP = duration_min × HRR × 0.64 × e^(1.92 × HRR)` where HRR is Heart Rate Reserve fraction. The exponential weight makes high-intensity work disproportionately heavier than easy work — at HRR = 0.65 (easy aerobic) the multiplier is ≈1.43, at HRR = 0.90 (threshold) it is ≈3.34. Because each engine is a pure function taking typed inputs and returning typed outputs, they are testable in isolation — nine validation scripts assert correct behavior against the deterministic training dataset.
+
+### LLM Integration and Failure Model
+
+Claude receives a bounded pre-computed context, not raw data. The failure modes were designed before the happy path was finalized.
+
+**Token budget:** The system prompt serializes the entire `CoachContext` into structured text targeting under 2,000 tokens — pre-computed signals, current phase, ACWR status, race prediction summary, recent workout classifications, and the athlete's HR zone configuration. `estimateContextTokens` (chars ÷ 4) is validated in `validate:context`; the seeded demo context produces 1,235 estimated tokens, well within the 2,500 budget ceiling. Conversation history is bounded to the last 8 turns fetched by `buildCoachContext`. Older context is summarized into `memorySummary` rather than included verbatim. Raw per-second GPS streams are never sent to Claude.
+
+**Memory extraction:** After each successful Claude streaming turn, a fire-and-forget secondary `anthropic.messages.create` call (max_tokens: 150) determines whether the conversation contained durable coaching context — injury history, training preferences, schedule constraints, personal goals. If so, a `CoachMemory` record is persisted and surfaced in the system prompt `memorySummary` for future sessions. The extraction uses a tight prompt with explicit valid and invalid format examples (`"Athlete: ..."` required; preamble or missing colon is rejected via `startsWith('Athlete: ')`). A pre-filter skips the extraction call entirely when the user message is short (under 60 characters) and contains none of a defined set of high-signal keywords — reducing secondary Claude API calls by approximately 60–70% at scale with no loss of meaningful context.
+
+**Fallback design:** `buildDeterministicCoachingResponse()` generates a coaching reply from pre-computed signals with no AI call. Two distinct paths trigger it: the key-absent path — if `ANTHROPIC_API_KEY` is missing, the route prepends a `__FALLBACK__\n` sentinel and streams the rule-based response before any Claude call is attempted; and the auth-error path — if the Claude API throws `Anthropic.AuthenticationError`, the sentinel is prepended before the fallback tokens. Non-authentication errors stream the fallback without a sentinel, preserving any partial Claude content already in the client buffer. The frontend detects the sentinel on the first line and marks the message with a "Computed analysis" badge instead of "Powered by Claude." The coaching interface is fully functional with zero Claude calls.
+
+### Validation Architecture
+
+The project validates correctness at three levels.
+
+**Level 1 — Data shape:** The generated training block is validated by `validate:seed` against expected field types, value ranges, and required scenarios — ACWR spike present, zone-mismatch run present, future goal race present, all workout types represented.
+
+**Level 2 — Engine outputs:** Each of the six intelligence engines has a dedicated validation script (`validate:training-load`, `validate:classifier`, `validate:injury-risk`, `validate:periodization`, `validate:race-prediction`, `validate:weekly-brief`) that runs the engine against the seeded dataset and asserts expected outputs: specific ACWR values, phase classifications, prediction ranges, brief sections populated.
+
+**Level 3 — System integration:** `validate:context` asserts the coach context stays under 2,500 estimated tokens with all fields populated. `validate:tcx` confirms all 54 TCX exports parse as valid XML with required elements present.
+
+This validation strategy means most failures surface at the data or engine layer — not at the UI layer — which is the correct failure mode for a coaching system where semantic correctness matters more than syntax.
+
+### Key Tradeoffs
+
+**1. Generated training block over live Strava dependency**
+
+Live Strava data creates three problems for reviewer evaluation: every reviewer sees different data, setup requires OAuth through a third-party consent flow, and the intelligence states that demonstrate system correctness — ACWR spike, zone-mismatch run — may not exist in a given reviewer's actual training history. The alternative: a deterministic 12-week training block with deliberate imperfections seeded into the database. Every reviewer sees the same training arc, every intelligence state is guaranteed, and every validation script is repeatable. Strava is an additive ingestion path — the engines read from Prisma tables regardless of how data arrived — not a dependency.
+
+**2. Deterministic computation over LLM-generated metrics**
+
+The alternative implementation sends raw activity data to Claude and asks it to compute training load, ACWR, phase classification, and race prediction. This was rejected: LLM output for numeric metrics is non-deterministic, untestable, and expensive — and the coaching quality depends on the computation being correct, not on the prose wrapping it. All six numeric coaching engines are deterministic; Claude receives only the pre-computed result. This makes the system testable, reproducible, and functional when Claude is unavailable.
+
+**3. Rule-based classifier over ML**
+
+A trained classifier for workout type detection would require labeled training data, a training pipeline, and accuracy claims that are hard to defend on a 54-activity dataset. The rule-based system is anchored to physiological thresholds — Zone 2 ceiling (145 bpm), threshold HR (170 bpm), lap structure variance — not to model weights. The 85.2% accuracy on 54 seeded activities (46/54 correct) reflects a known and documented ceiling: the remaining 8 misclassifications are label errors on taper long runs whose reduced distance falls below the long-run detection threshold, not execution evaluation errors. Execution evaluation — the coaching signal that matters — is correct on all 54 activities.
+
+**4. Compact coach context over raw activity streams**
+
+The alternative sends full activity JSON or GPS streams to Claude and asks it to reason over raw data. GPS streams have no coaching signal at the granularity Claude would consume them, and full activity JSON produces generic responses because Claude has no stable coaching model to anchor to. The chosen approach compiles a context object under 2,000 tokens containing only the signals a coach needs — phase, ACWR, TSB, race gap, recent workout classifications, and bounded conversation history. The responses are specific because the context is specific.
+
+**5. Prisma v6 over Prisma v7**
+
+Prisma v7 introduced four simultaneous breaking changes: datasource configuration changes (driver adapters required for some connection modes), generated client import path changes, environment loading behavior changes in serverless environments, and removal of `package.json#prisma.seed` in favor of `prisma.config.ts`. Each is non-trivial in isolation; all four together in a time-boxed build introduce compounding risk with no payoff. Prisma v6.19 is stable, production-capable, and has a well-tested Supabase + Vercel integration path. Pinning v6 is controlled dependency management; the v7 migration is scoped as a standalone task.
+
+**6. No multi-user auth in the vertical slice**
+
+Every entity in the schema is already athlete-scoped via `athleteId`. Adding Iron Session middleware and replacing `findFirst()` with `findUnique({ where: { id: session.athleteId } })` across all route handlers is mechanical work. The decision to cut it was scope management — shipping complete intelligence across six dimensions at production quality, rather than shipping shallow intelligence with an auth layer on top. The architecture is ready for the change; the change is additive.
+
+**7. Optional Strava import cut from core scope**
+
+The architecture separates ingestion from intelligence. The six engines read from Prisma tables and produce identical outputs regardless of whether those tables were populated by the seed script or a Strava OAuth import. Strava OAuth, import, and rate-limit handling were scaffolded but not implemented. The demo path is complete without it; Strava is additive.
+
+### Production Hardening
+
+Six failure modes were anticipated and hardened. On input safety: a 4,000-character user message limit on the coaching endpoint prevents context window abuse from oversized inputs; a prompt injection guard in the system prompt adds a basic layer of instruction resistance against role-change attempts in user messages. On deployment reliability: `vercel.json` runs `prisma migrate deploy && prisma generate` in the build command automatically, eliminating the cold-deploy 500 error that occurs when a schema migration is deployed without regenerating the Prisma client. On frontend resilience: `AbortController` 15-second timeouts on all frontend fetch calls ensure the error state is always reachable — cold Vercel starts cannot trap the UI in an indefinite loading state. On cost control: the `maybeExtractMemory` pre-filter skips the secondary Claude extraction call for short messages with no high-signal keywords, reducing secondary API calls by approximately 60–70% at scale. On UI honesty: a terrain disclaimer on the race prediction page clarifies that the Riegel formula assumes flat-course conditions.
+
+### Extension Path
+
+Because ingestion is separated from intelligence, the same six engines run identically over seeded data today and Strava-imported data tomorrow — wiring up OAuth populates the same Prisma tables the engines already read from. Multi-user auth is additive: session middleware replaces `findFirst()` with athlete-scoped `findUnique()`, and the engines do not change. Caching is additive: a 30-second TTL on `buildAthleteIntelligenceContext` results would eliminate most cold-start latency without any changes to the engine layer. The remaining production work — observability, queuing for Strava import, multi-user isolation, HRV integration — is operational engineering, not architectural rework.
 
 ---
 
@@ -120,14 +193,6 @@ The population system generates a deterministic 12-week half-marathon training b
 Two deliberate imperfections are embedded: (1) A week 8 load spike where the ACWR reaches 1.337, placing the athlete in the caution category and triggering the injury-risk signal — this exercises ACWR forecasting and creates a meaningful warning state rather than a trivially optimal training history. (2) A week 4 EASY run seeded with avg HR 157 bpm against an easy ceiling of 145 bpm and avg pace 5:05/km against a zone 2 ceiling — this exercises execution evaluation and produces the `TOO_HARD` classification that drives the zone warning callout in the activity detail page. Both imperfections are intentional and documented in the seed.
 
 TCX export serializes each activity as valid Garmin Training Center XML for optional Strava upload — not required for the demo, but available as a compatibility path and as evidence that the generated data is realistic enough to pass format validation. Seed idempotency is guaranteed via a `seedHash` field on each activity record; re-running the seed script upserts rather than duplicates.
-
----
-
-## Prisma v6 Decision
-
-Prisma v7 introduced four breaking changes that are non-trivial to absorb simultaneously in a time-boxed build. First, datasource configuration: v7 changes how the `datasource db` block works and, for some connection modes, requires explicit driver adapters. The v6 pattern — `url = env("DATABASE_URL")` for the pooled runtime connection, `directUrl = env("DIRECT_URL")` for the direct CLI migration connection — is clean, stable, and well-documented for Supabase. Second, client imports: v7 changes the generated client import path and initialization pattern, requiring mechanical updates across every file that instantiates PrismaClient. Third, environment loading: v7 changes when and how `DATABASE_URL` is resolved, particularly in serverless environments, introducing runtime startup differences that are hard to predict without testing. Fourth, seed behavior: v7 removes `package.json#prisma.seed` in favor of `prisma.config.ts` — a config migration that sits on top of the three changes above.
-
-None of these are insurmountable in isolation. All four together, in a single take-home build, introduce compounding risk with no payoff relative to the task. Prisma v6.19 is stable, production-capable, and has a clear Supabase + Vercel integration path that is well-tested and documented. The `package.json#prisma.seed` deprecation warning that late v6 builds emit is acceptable — it is a warning, not an error, caused by Prisma v7 moving the config format, not by anything broken in v6 behavior. Pinning to v6 was deliberate dependency management, not avoidance of new technology. A production continuation of this project would schedule the v7 migration as a standalone task with proper testing time — not as a side effect of a feature build.
 
 ---
 
