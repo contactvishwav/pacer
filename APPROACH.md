@@ -62,6 +62,9 @@ Strava labels workouts by sport type (run, ride, swim). It does not classify wor
 
 **Deterministic fallback with sentinel detection:** `buildDeterministicCoachingResponse()` generates a coaching reply from the pre-computed intelligence context signals without any AI call. Two paths trigger it: (1) Gap 2A — if `ANTHROPIC_API_KEY` is absent (`!apiKey || apiKey.trim() === ''`), the route prepends `__FALLBACK__\n` and streams the fallback word-by-word before any Claude call is attempted; (2) Gap 2B — if the Claude API throws `Anthropic.AuthenticationError` (HTTP 401, detected via `instanceof` check in the catch block), the sentinel is prepended before the fallback tokens. Non-authentication errors stream the fallback without a sentinel, preserving any partial Claude content already in the client buffer. The frontend detects the sentinel on the first line and marks the message with a "Computed analysis" badge instead of "Powered by Claude."
 
+**Production Hardening**
+Six production-readiness fixes were applied based on a post-build audit: (1) user message character limit (4,000 chars max) on the coaching endpoint to prevent runaway context window abuse, (2) prompt injection guard added to the system prompt, (3) `vercel.json` configured with automated `prisma migrate deploy && prisma generate` in the build command to prevent cold-deploy 500 errors, (4) `AbortController` 15-second timeouts on all frontend fetch calls to prevent indefinite loading states on cold Vercel starts, (5) terrain disclaimer added to the race prediction page clarifying the flat-course Riegel assumption, (6) `maybeExtractMemory` pre-filter added to skip Claude extraction calls for short low-signal messages, reducing API cost ~60-70% at scale.
+
 ---
 
 ## The Generated Training Dataset
@@ -137,6 +140,8 @@ The **INTERVAL classifier 3-lap minimum.** The classifier initially lacked a min
 **Claude API costs at conversation scale.** The 8-turn history bound and 2,000-token system prompt keep per-message costs manageable in the demo, but a production coaching product with thousands of daily active users and long conversation histories would need a more aggressive summarization strategy.
 
 **Token budget is estimated, not exact.** `estimateContextTokens` uses character count divided by 4 as a proxy for token count. This is a standard approximation but can be off by ±20% for content with unusual character distributions. The 2,500-token ceiling includes enough buffer that this is not currently a problem, but a production system should use the Anthropic token-counting API for accurate measurement.
+
+**Cold Vercel starts on the dashboard.** `buildAthleteIntelligenceContext` runs 6 intelligence engines and 4+ DB queries synchronously. On a cold Vercel serverless start, this takes 4-8 seconds. A 30-second in-memory cache with TTL would reduce p95 latency to cold-start time only — not yet implemented.
 
 ---
 
