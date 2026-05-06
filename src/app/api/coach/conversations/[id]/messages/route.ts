@@ -35,6 +35,25 @@ async function maybeExtractMemory(
 ): Promise<void> {
   if (!process.env.ANTHROPIC_API_KEY) return
 
+  // Pre-filter: skip extraction for short messages with no durable-
+  // context signals. Reduces API cost ~60-70% at scale.
+  // See docs/PRODUCTION_AUDIT.md §13.3
+  const HIGH_SIGNAL_KEYWORDS = [
+    'prefer', 'prefer not', 'like to', "don't like", "can't", 'cannot',
+    'injury', 'injured', 'hurt', 'pain', 'knee', 'ankle', 'shin', 'calf',
+    'schedule', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
+    'morning', 'evening', 'weekend',
+    'goal', 'target', 'hoping to', 'want to', 'trying to',
+    'history', "i've been", "i have been", 'always', 'usually', 'tend to',
+  ]
+
+  const messageIsLong = userMessage.length > 60
+  const hasHighSignalKeyword = HIGH_SIGNAL_KEYWORDS.some(kw =>
+    userMessage.toLowerCase().includes(kw)
+  )
+
+  if (!messageIsLong && !hasHighSignalKeyword) return
+
   try {
     const extractionResponse = await anthropic.messages.create({
       model:      COACH_MODEL,
