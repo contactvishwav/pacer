@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -355,12 +357,25 @@ function AssistantBubble({ message }: { message: Message }) {
               </span>
             </div>
           ) : (
-            <>
-              {renderContent(message.content)}
+            <div>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p:      ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                  em:     ({ children }) => <em className="italic text-foreground/90">{children}</em>,
+                  ul:     ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>,
+                  ol:     ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>,
+                  li:     ({ children }) => <li className="leading-relaxed">{children}</li>,
+                  code:   ({ children }) => <code className="rounded bg-zinc-800 px-1 py-0.5 text-sm font-mono text-orange-300">{children}</code>,
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
               {message.isStreaming && (
-                <span className="ml-0.5 inline-block h-[1em] w-0.5 translate-y-[2px] animate-pulse bg-primary/70" />
+                <span className="inline-block h-4 w-0.5 animate-pulse bg-primary/70 ml-0.5" />
               )}
-            </>
+            </div>
           )}
         </div>
         {!message.isStreaming && message.content && (
