@@ -136,9 +136,15 @@ export async function POST(
   } catch {
     userMessage = ''
   }
-  if (!userMessage) {
+  if (!userMessage || userMessage.trim().length === 0) {
     return NextResponse.json(
-      apiError('Request body must include a non-empty "message" field.'),
+      { success: false, error: 'Message cannot be empty.' },
+      { status: 400 },
+    )
+  }
+  if (userMessage.length > 4000) {
+    return NextResponse.json(
+      { success: false, error: 'Message too long. Maximum 4000 characters.' },
       { status: 400 },
     )
   }

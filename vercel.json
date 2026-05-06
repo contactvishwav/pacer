@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npx prisma migrate deploy && npx prisma generate && next build",
+  "framework": "nextjs"
+}
