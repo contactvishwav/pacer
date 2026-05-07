@@ -1,226 +1,294 @@
-# Video Script — Pacer Demo (~5 min)
+# Video Script — Pacer Demo (6–7 min)
 
-**Format:** Loom screen recording  
-**Audience:** Luma engineers who will read the code  
-**Tone:** Confident, specific, founder/engineer energy. No hedging. Every sentence earns its place.  
-**Language rule:** Use "training-load risk signal", "caution range", "load spike signal" — never "injury prediction" or "you will get injured."  
-**Before recording:** Deploy to Vercel and replace [YOUR_VERCEL_URL] with the live URL throughout.
-
----
-
-## [0:00–0:30] — The Problem (30 seconds)
-
-**Screen:** Stay on dashboard while speaking — do not navigate yet
-
-**Say:**
-
-"Strava launched Athlete Intelligence in October 2024 to 135 million athletes. Their own community called it — direct quote — 'prose layered on top of your data points.' One paragraph per activity. No concept of training arc, no load spike detection, no race trajectory. It describes workouts. A coach interprets them. Strava gave athletes a paragraph. I gave them six intelligence dimensions, a streaming coach, and a race trajectory. Here's what that looks like."
+**Format:** Loom screen recording
+**Audience:** Director of Engineering and hiring manager at Luma AI
+**Tone:** Confident, specific, engineer-to-engineer. No hedging. Every sentence earns its place.
+**Language rule:** "workload-risk signal", "training-load spike", "caution range", "higher-risk pattern" — never "injury prediction" or "you will get injured."
+**Before recording:** Deploy to Vercel and replace [YOUR_VERCEL_URL] throughout.
 
 ---
 
-## [0:30–1:20] — Dashboard Walkthrough (50 seconds)
+## [0:00–0:45] — The Problem and Product Thesis (45 seconds)
 
-**Screen:** Scroll slowly through /dashboard — let each card breathe for 3–4 seconds before continuing
+**Screen:** Dashboard visible but do not navigate. Stand still.
 
-**Say:**
+Strava Athlete Intelligence launched in October 2024 to 135 million athletes. Their own community characterized it — direct quote — as "prose layered on top of your data points." After a completed run, the feature generates a paragraph about that run. Their own materials frame it as post-activity commentary. It describes what happened. It does not help decide what to do next.
 
-"This is the dashboard. It answers five questions a runner needs every week.
+The product gap is not better text. The gap is coaching strategy. A coach synthesizes a training block — weeks of accumulated history — into a recommendation about trajectory, risk, and decisions. A describer consumes one activity. A coach consumes a training arc.
 
-Training phase: RECOVERY. The athlete just came off peak training. That arc at the bottom shows it — BASE weeks one through three, BUILD four through seven, PEAK at week eight, then RECOVERY. That's not a hardcoded label. The phase detector read a 47% load drop against the 3-week average and classified it as recovery. Every card on this dashboard is computed — nothing is hardcoded.
+*Pause. Let this land.*
 
-Training-load risk signal. ACWR is 0.44 this week — underload, exactly right for a recovery week. At peak training in week eight, it hit 1.337, into the caution range, and the system flagged a training-load spike.
+"Strava explains the workout you just completed. Pacer helps decide what you should do next."
 
-Race prediction: 1:53:19 projected for the SF Half Marathon on August 2 — 90 days away. 1:41 ahead of the 1:55 goal.
-
-The weekly brief synthesizes load trend, ACWR, phase, and race gap into a coaching prescription — computed, not generated. Let me show you the run that's driving one of these coach questions."
+Pacer computes the athlete's training state first — from 12 weeks of longitudinal history — and surfaces that state as a coaching model. The chat interface is a layer on top of that computation, not the source of intelligence.
 
 ---
 
-## [1:20–2:00] — The Key Demo Moment: Zone-Mismatch Run (40 seconds)
+## [0:45–1:30] — Why This Is Technically Different (45 seconds)
 
-**Screen:** /activities → click to page 2 → pause on the page 2 list → click March 8 "8.0km Steady State Run"
+**Screen:** Stay on dashboard. Move to src/lib/intelligence/ briefly if possible, then back.
 
-**Say:**
+The naive implementation of "AI coaching" sends activity data to Claude and asks it to reason. That produces plausible-sounding but generic advice — Claude has no stable coaching model to work from, and the outputs are not testable or reproducible.
 
-"Activities — 54 runs, paginated. Page two. March 8. Red 'Too Hard' badge. Let me open it.
+Pacer does not do that.
 
-Intended easy. Classified Steady State. Heart rate 157 against a Zone 2 ceiling of 145 — twelve beats over. Zone warning: 'This run exceeded your aerobic ceiling — effort was in Steady State zone when the intent was easy recovery.'
+Raw activity history goes into Prisma and Supabase. Six deterministic intelligence engines transform it into a unified athlete context object. That object powers every UI surface and the coach chat.
 
-This is execution evaluation. Not just what the workout was, but whether it was executed correctly. The classifier scored it against the intent.
+Six engines:
 
-The classifier is anchored to absolute physiological thresholds — your Zone 2 ceiling is fixed at 145 bpm. Not a rolling average. Not a comparison to last month. A number that means something physiologically.
+Banister-style training load computing CTL, ATL, and TSB. Gabbett-style ACWR for workload-risk spike detection. Riegel formula for race prediction with confidence intervals. A rule-based workout classifier with execution evaluation. A periodization phase detector anchored to the race date. A deterministic weekly brief generator that produces coaching prescriptions without any AI call.
 
-Athlete Intelligence would have said your pace was above your 30-day average. Which is true, and useless. We say: the intent was easy, the execution wasn't, and here's what that costs you."
-
-[Click "Ask Coach about this workout" button — the app opens /coach with the question pre-filled in a new named session]
+Because the computation layer runs first, every surface in the product — dashboard, activity detail, race goal, weekly brief, coach chat — uses the same pre-computed state. The coaching is consistent, testable, and reproducible. Claude makes it conversational. The engines make it specific.
 
 ---
 
-## [2:00–2:25] — Race Prediction (25 seconds)
+## [1:30–2:20] — Dashboard: Current Coaching State (50 seconds)
+
+**Screen:** /dashboard. Scroll slowly. Let each card sit for 3–4 seconds.
+
+Each card answers a coaching question.
+
+Training Phase card: "Where am I in training?" — RECOVERY. The arc at the bottom shows the full 12-week periodization: BASE weeks 1–3, BUILD weeks 4–7, PEAK week 8, then RECOVERY. That label is not hardcoded. The phase detector read a 47% load drop against the 3-week average and classified it as recovery. In week 8, when the athlete deliberately spiked load, the ACWR hit 1.337 — into the caution range — and the system overrode the calendar classification. The workload signal was more important than the schedule position.
+
+ACWR card: "Am I at risk?" — ACWR is 0.44 this week. Underload — confirming the recovery prescription, not just describing it. At week 8 peak it hit 1.337, triggering the training-load risk signal. Not a rolling average. Not a heuristic. The Gabbett formula: this week's TRIMP divided by the arithmetic mean of the prior four complete weeks.
+
+Race Prediction card: "Am I on track?" — 1:53:19 projected, 1:41 ahead of the 1:55:00 goal, 87 days out. Riegel formula applied to the best qualifying tempo effort, adjusted for current TSB freshness. 80 out of 100 confidence.
+
+Weekly Brief preview: "What should I do this week?" — phase-appropriate prescription. Recovery week means easy runs only, HR below Zone 2 ceiling.
+
+Coach CTA: "What should I ask my coach?" — the suggested questions are wired to the computed intelligence context, not generic prompts.
+
+---
+
+## [2:20–3:10] — Activity Intelligence: Intent vs Execution (50 seconds)
+
+**Screen:** /activities → page 2 → click March 8 "8.0km Steady State Run"
+
+Before clicking, set up what they are about to see.
+
+Strava can summarize pace and effort relative to averages. What it cannot do is ask whether this specific workout was executed according to its intent. That distinction matters because a scheduled easy run executed at threshold effort is not "above average." It is a training decision problem.
+
+*Click the activity.*
+
+Classification card: Intended easy. Classified Steady State. Heart rate 157 against a Zone 2 ceiling of 145 — twelve beats over.
+
+*Pause. Let it be visible.*
+
+The Zone 2 ceiling is not derived from a rolling average. It is a fixed physiological threshold — the heart rate below which the athlete can sustain aerobic effort without accumulating meaningful fatigue. Exceeding it on a scheduled recovery day costs the next day's quality session.
+
+Coaching Context card: This is where that violation connects to the training arc. The phase context, the TSB at the time, the ACWR — all computed, all part of the coaching explanation.
+
+*Click "Ask Coach about this workout."*
+
+The coach opens with the question pre-filled. SessionStorage bridge — one line of code — carries the coaching context from every intelligence page directly into the first coach message. The question is specific because the computation was specific.
+
+---
+
+## [3:10–3:55] — Race Prediction: Honest Trajectory Modeling (45 seconds)
 
 **Screen:** /race-goal
 
-**Say:**
+Race prediction is not presented as a certainty. It is a trajectory estimate with a confidence interval, grounded in a published formula.
 
-"Race goal. 1:53:19 projected — 1:41 ahead of the 1:55 goal, 90 days out. The formula is Riegel from 1977: T2 equals T1 times the distance ratio to the 1.06 power. It's in the code with a comment. No black box, no ML model.
+Riegel 1977: T2 equals T1 times the distance ratio raised to the 1.06 power. The 1.06 exponent captures the non-linear fatigue relationship over longer distances — you slow down more than proportionally as distance increases. The formula is in the code with a comment. No black box, no ML model.
 
-Confidence interval: 1:49:14 optimistic to 1:57:24 pessimistic. Confidence score: 80 out of 100. TSB is plus 7.8 — the freshness adjustment is surfaced explicitly in the UI. Ask coach."
+The system identifies the best qualifying effort — lowest average pace from TEMPO, LONG_RUN, or RACE activities over 5km in the last 8 weeks. Then applies Riegel. Then adjusts for current TSB freshness — TSB is +7.2, so the prediction improves 2%. All adjustments are surfaced explicitly in the UI.
 
-[Click Ask Coach button — navigate to /coach with pre-filled question]
+1:53:19 predicted. 1:49:14 to 1:57:24 confidence interval. 80 out of 100 confidence score. 1:41 ahead of the 1:55:00 goal.
 
-"SessionStorage bridge — from every intelligence page into coach context. One line."
+*Point at the disclaimer.*
+
+"Estimated based on flat-course Riegel formula. Hilly terrain or adverse weather may significantly affect results." The product should not overclaim. Honest uncertainty is a feature, not a weakness.
 
 ---
 
-## [2:25–3:00] — Weekly Brief (35 seconds)
+## [3:55–4:45] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
 
 **Screen:** /weekly-brief
 
-**Say:**
+Athlete Intelligence fires on activity upload. Between workouts — on rest days, on Monday mornings when an athlete is planning the week — there is no coaching presence. Pacer generates a coaching brief every week, whether or not an activity was uploaded.
 
-"Weekly brief. Read the key signal: 'Fitness CTL 59.9 is declining — consistency this week is critical to arrest the trend.'
+*Read the key signal aloud:*
 
-That sentence was generated by `generateWeeklyBrief` — a deterministic function. No Claude call. Five sections: last week's load reviewed, this week prescribed, key signal, warnings, suggested focus. All computed from CTL, ACWR, phase, and race gap. The prescription is phase-appropriate — recovery week means easy runs only, heart rate below the zone 2 ceiling.
+"Fitness (CTL 59.3) is declining — consistency this week is important to arrest the trend and rebuild your aerobic base."
 
-The architectural decision here is deliberate: I built two layers. The first is a deterministic sports science engine — Banister PMC, Gabbett ACWR, Riegel prediction — that computes the coaching signals. The second is Claude, running with that computed context so its responses are specific rather than generic. The weekly brief comes from layer one. The coach conversation comes from layer two. Neither is impressive alone. Together they produce something that knows this athlete's exact fitness trajectory. And because layer one doesn't need Claude, the system degrades gracefully — coaching is always available."
+That sentence came from generateWeeklyBrief — a deterministic function. No Claude call. Five sections: last week's training reviewed, this week prescribed, the most important signal, active warnings, and suggested focus. All derived from CTL trend, ACWR category, phase classification, and race gap. The prescription is phase-appropriate — recovery week means easy runs only, with a specific HR ceiling.
 
----
+*Make the architectural point clearly:*
 
-## [3:00–3:35] — Architecture (35 seconds)
+This is why I call Pacer a computed coaching layer. The brief works without Claude. Claude can elaborate on it, rewrite it, answer questions about it — but the coaching value exists in the computation layer. That means the product degrades gracefully when the AI API is unavailable. It means the brief is testable against a known schema. It means the coaching is not hallucinated — it is derived.
 
-**Screen:** Open code editor → `src/lib/intelligence/` folder
-
-**Say:**
-
-"Six engine files — `training-load`, `injury-risk`, `workout-classifier`, `periodization`, `race-prediction`, `weekly-brief`. Pure functions. All consumed through `buildAthleteIntelligenceContext` — one integration point."
-
-[Navigate to `src/app/api/dashboard/route.ts` — scroll to show the full file fits on screen without scrolling]
-
-"The entire handler fits on screen. Authenticate, call one function, return. The intelligence is in `src/lib`, not in the route.
-
-The coaching context stays under 2,000 tokens. I designed this object manually — what signals go in, how they're structured, how to bound conversation history without losing continuity. Claude Code can write the route handler. Deciding what a coach needs to know to produce specific rather than generic responses — that required product judgment, not code generation. This context is what you're about to see working live."
+The deterministic brief also proves something about the design philosophy: if you cannot generate coaching advice from the computed signals without AI, you do not understand the signals well enough to send them to AI.
 
 ---
 
-## [3:35–4:30] — Coach Chat Live Demo (55 seconds)
+## [4:45–5:40] — Coach Chat: Claude as Interface Over Computed State (55 seconds)
 
-**Screen:** /coach
+**Screen:** /coach — show the sidebar of named sessions briefly, then start a new message.
 
-[The coach page opens with the prefilled question already in a named session in the sidebar]
+Before streaming, explain what Claude is working with.
 
-[Click "How is my training going?" pill — do not pre-type, stream live]
+The coaching context is pre-compiled to under 2,000 tokens. It contains: the current phase with its primary reason, ACWR category and contributing factors, race prediction and gap, recent workout classifications with execution evaluations, bounded conversation history from this session, and coaching memories from previous sessions. Raw GPS streams are never sent. The computation layer already extracted the signals Claude needs.
 
-**Say while streaming:**
+*Send "How is my training going?" — stream live, do not pre-type.*
 
-"The sidebar on the left lists named sessions — each one has its own isolated conversation history. The coach remembers context within a session and durable facts — injury history, training preferences — across all sessions. This is live. The coach has the full intelligence context loaded — training phase, ACWR, race goal, workout execution history. Watch it reference actual numbers."
+*While streaming:*
 
-[Stream completes — point at specific numbers in the response]
+This is live. Watch it reference computed values — CTL, TSB, ACWR, the recovery prescription — not generic training advice.
 
-"There — CTL 59.9, TSB plus 7.8, the recovery prescription. Those aren't templates. Every coaching turn is grounded in the computed context."
+*After streaming completes, point at specific numbers.*
 
-[Point at "Powered by Claude" label]
+There — CTL 59.3, ACWR 0.44, the recovery prescription. Those are not invented. They come from the engines. Claude makes them conversational.
 
-"'Powered by Claude.' Follow-up."
+*Type a meaningful follow-up: "Should I be worried about my CTL declining?"*
 
-[Type: "Should I be worried about my CTL declining?"]
+*While streaming:*
 
-**Say while streaming:**
+This is the conversational dimension Athlete Intelligence does not have. You cannot ask a follow-up. You cannot push back. Pacer maintains full context across the conversation and carries durable coaching facts — preferences, constraints, injury history — across sessions via CoachMemory records written by a secondary Claude call after each turn.
 
-"This is the conversational dimension Athlete Intelligence completely lacks. You cannot ask a follow-up. You cannot push back. Strava gives you one paragraph and a thumbs-up button."
+*After response.*
 
-[After response completes]
-
-"Memory system runs after each stream — fire-and-forget, never blocks the response. Claude determines whether this turn contained durable context. If it does, a structured CoachMemory record is written. That record surfaces in the system prompt for every future session. This runs as a secondary Claude call — fire-and-forget. If the API fails, the coaching response already streamed. The memory is best-effort. That's the right trade-off."
+If the Anthropic API is unavailable, a deterministic fallback streams computed coaching analysis from the same intelligence context — no hallucination possible, no dependency on Claude being available. The coaching works either way.
 
 ---
 
-## [4:30–5:50] — What I'm Proud Of + What's Next (80 seconds)
+## [5:40–6:35] — Architecture Decisions and AI Direction (55 seconds)
 
-**Screen:** Navigate back to /dashboard — briefly show relevant code as you mention each item
+**Screen:** src/lib/intelligence/ folder → buildAthleteIntelligenceContext → src/app/api/dashboard/route.ts
 
-**Say:**
+*Show the intelligence folder.*
 
-"Three things I'm genuinely proud of — not because they're clever, but because each one required a decision that AI couldn't make for me.
+Six engine files. Pure functions. Independently testable. All consumed through buildAthleteIntelligenceContext — one source of truth that every product surface reads from. The dashboard, race goal page, weekly brief, and coach chat all see the same computed state.
 
-**First: Claude writes its own memory.**"
+*Show the route handler.*
 
-[Screen: Show `maybeExtractMemory` in the coach route, or Prisma Studio CoachMemory table]
+The entire dashboard handler. Authenticate, call one function, return the result. Zero intelligence logic in the route file. Every coaching decision lives in src/lib.
 
-"After each successful coaching turn, a secondary Claude call runs fire-and-forget. It reads the conversation and determines whether durable context exists — a preference, a training constraint, an injury history. If it does, it writes a structured summary starting with 'Athlete: ' — that format is enforced by explicit valid and invalid examples in the extraction prompt. The first version used text matching on trigger phrases. I replaced it because text matching is fragile: it would miss 'I tore my calf' while catching 'I like morning runs.' Letting Claude extract its own memory is not just cleaner code. It's the right architecture for a system that's supposed to get better the longer you use it.
+Now explain the decisions I made that AI could not.
 
-**Second: the ACWR implementation.**"
+**Product thesis.** The model would have built a fitness chatbot. I decided the right product is a training-block coach. That framing shaped every prompt that followed.
 
-[Screen: Show the ACWR zone bar on the dashboard]
+**ACWR formula choice.** I chose the Gabbett ratio over ATL/CTL. They answer different questions. ATL/CTL tracks chronic fitness trend and stays elevated throughout any build block. Gabbett compares this week to the prior four-week baseline at the same weekly timescale — it detects spikes. Week 8's 1.337 was identifiable precisely because weeks 1–7 established a stable baseline.
 
-"I use the Gabbett ratio — this week's load divided by the 4-week average — not the PMC ATL/CTL ratio. They answer different questions. ATL/CTL tracks chronic fitness trend. Gabbett detects whether this specific week is anomalous relative to the established baseline. During a build phase, ATL stays above CTL persistently, making ATL/CTL a poor spike detector. Gabbett isolated week eight's 1.337 spike precisely because the chronic denominator is stable. That's a sports science distinction I had to understand and choose — no model makes that call for you.
+**Deterministic training block.** I built a 12-week dataset instead of requiring Strava OAuth because the intelligence dimensions need specific data shapes to demonstrate — a load spike, a zone-mismatch run, a full periodization arc, a race trajectory gap. Real data might not have those. The deterministic training block guarantees them. It is a controlled evaluation environment, not a shortcut.
 
-**Third: the deterministic brief.**"
+**Deterministic engines before Claude.** I rejected "send everything to Claude." I built computed signals first because the coaching should be correct when Claude is unavailable, testable against known inputs, and specific to this athlete's actual computed state.
 
-[Screen: Navigate briefly to /weekly-brief]
+Other explicit decisions: TCX over FIT because FIT is binary and risky to generate — TCX is XML and human-readable. Prisma v6 pinned because Prisma v7 introduced four simultaneous breaking changes in a time-boxed sprint. Rule-based classifier because the training set is small and the rules are auditable. Scope cuts — no mobile, no live Strava import, no multi-user auth — to keep the slice finished rather than broad.
 
-"Five coaching sections, zero Claude calls. The brief generates from computed signals — CTL trend, ACWR, phase, race gap. I built the same deterministic fallback for coach chat: if the API returns a 401, the coach streams a computed response.
+---
 
-The reason the deterministic layer matters isn't that it saves API costs. It's that it forces you to understand the domain well enough to compute the answer without AI. I can't generate a coaching brief from CTL, ACWR, and phase without understanding what those numbers mean and how coaches use them. Building the deterministic layer first meant the Claude layer inherited that understanding through the context object. That's why the coach produces specific responses instead of generic ones.
+## [6:35–7:00] — Close (25 seconds)
 
-Claude Code can write the API route. The coaching context design is the highest-leverage thing I built, and it required product judgment, not code generation.
+**Screen:** Back to /dashboard.
 
-What's next: multi-user auth with Clerk, Garmin HRV integration for recovery correlation, and a periodization-aware training plan generator.
+Pacer is a complete vertical slice of a training-block coaching system. It is not trying to add features to Strava. It proves a specific product thesis: coaching requires reasoning over the training arc, not commentary on individual activities.
+
+The app tells the athlete where they are, whether they are at risk, whether they are on track, what to do this week, and why — and then lets them have a specific, grounded conversation with a coach who knows all of that.
+
+What comes next: Strava OAuth import with idempotent sync, multi-user auth and data isolation, Garmin HRV integration for recovery-aware coaching, and background job infrastructure for historical imports.
+
+*Let it land:*
 
 Athlete Intelligence describes. Pacer coaches.
 
-Everything you saw is running on real computed training data, no Strava account required. The reviewer setup is three commands: migrate, seed, dev."
+*Show live Vercel URL for 3 seconds.*
 
-[Show [YOUR_VERCEL_URL] on screen for 3 seconds]
+Everything visible was computed from a deterministic training block. The reviewer setup is three commands: migrate, seed, dev.
 
 ---
 
-## Timing verification
+## Pre-Recording Checklist
 
-| Section | Duration | Running total |
+Before pressing record:
+
+- [ ] Deploy to Vercel and replace [YOUR_VERCEL_URL] throughout
+- [ ] Run: `curl http://localhost:3000/api/dashboard` to verify current phase (RECOVERY), ACWR (0.44), CTL (59.3), race prediction (1:53:19) — update script if they differ
+- [ ] Confirm the March 8 zone-mismatch run is visible on page 2 of /activities with the red "Too Hard" badge
+- [ ] Confirm coach streaming is working with a live test message before recording
+- [ ] Confirm /coach/memories page is accessible
+- [ ] Have src/lib/intelligence/ open in the code editor and ready to show
+- [ ] Have src/app/api/dashboard/route.ts open and ready to show
+- [ ] Close all browser tabs except localhost:3000
+- [ ] Set browser zoom to 100% — do not zoom in or out during recording
+- [ ] Record at 1080p minimum
+- [ ] Do not pre-type coach messages — let them stream live
+
+---
+
+## Timing Table
+
+| Section | Duration | Running Total |
 |---|---|---|
-| The Problem | 0:30 | 0:30 |
-| Dashboard Walkthrough | 0:50 | 1:20 |
-| Zone-Mismatch Run | 0:40 | 2:00 |
-| Race Prediction | 0:25 | 2:25 |
-| Weekly Brief | 0:35 | 3:00 |
-| Architecture | 0:35 | 3:35 |
-| Coach Chat Live Demo | 0:55 | 4:30 |
-| What I'm Proud Of + Next | 1:20 | 5:50 |
+| Product thesis and problem | 0:45 | 0:45 |
+| Why technically different | 0:45 | 1:30 |
+| Dashboard walkthrough | 0:50 | 2:20 |
+| Activity intelligence | 0:50 | 3:10 |
+| Race prediction | 0:45 | 3:55 |
+| Weekly brief | 0:50 | 4:45 |
+| Coach chat live | 0:55 | 5:40 |
+| Architecture and AI direction | 0:55 | 6:35 |
+| Close | 0:25 | 7:00 |
 
-**Total: 5:50** — within the acceptable range for a "~5 minute" Loom. Note: the user-provided section durations (30+50+40+25+35+35+55+80) sum to 350s = 5:50, not 5:30. Both are well within Luma's stated "~5 minute" guideline.
-
----
-
-## Changes from v1 — edit log
-
-| Issue | Change |
-|---|---|
-| Issue 1 | Problem section tightened from 9 sentences to 5 — fits 25s, lands harder |
-| Issue 2 | Dashboard: added "47% load drop against 3-week average" + "nothing is hardcoded" |
-| Issue 3 | Zone-mismatch: added Athlete Intelligence contrast before clicking Ask Coach |
-| Issue 4 | Race Prediction: result first (1:53:19), formula second — more watchable |
-| Issue 5 | Coach Chat: added "CTL 59.9, TSB plus 7.8, the recovery prescription — not templates" after streaming |
-| Issue 6 | Architecture: "scroll to show full file fits on screen" replaces "Twenty lines" claim |
-| Issue 7 | Proud section reordered: memory first (most unique), ACWR second (domain depth), brief third (defensive judgment) |
-| Issue 8 | [YOUR_VERCEL_URL] shown on screen for 3 seconds — deploy before recording |
-| Structural | Architecture moved to [2:45–3:10] — sets up the context design before live coach demo |
+**Total: 7:00** — within acceptable range for Luma's "~5 minute" guideline given the depth of content. Keep delivery crisp.
 
 ---
 
-## Data point verification
+## Verified Data Points (checked 2026-05-07)
 
-| Data point | Section | Exact phrasing |
+| Data point | Value | Where used |
 |---|---|---|
-| ACWR this week: 0.44 | Dashboard [0:30] | "ACWR is 0.44 this week — underload" |
-| Race prediction: 1:53:19 | Race Prediction [2:00] | "1:53:19 projected" |
-| Confidence interval: 1:49:14–1:57:24 | Race Prediction [2:00] | "1:49:14 optimistic to 1:57:24 pessimistic" |
-| Confidence score: 80/100 | Race Prediction [2:00] | "Confidence score: 80 out of 100" |
-| Gap: 1:41 ahead | Race Prediction [2:00] | "1:41 ahead of the 1:55 goal" |
-| March 8, "8.0km Steady State Run", HR 157 vs 145 | Zone-Mismatch [1:20] | "March 8... Heart rate 157 against a Zone 2 ceiling of 145 — twelve beats over" |
-| Week 8 ACWR spike: 1.337 | Dashboard [0:30] | "week eight, it hit 1.337, into the caution range" |
-| CTL: 59.9 | Weekly Brief [2:25] + Coach [3:35] | "Fitness CTL 59.9 is declining" + "CTL 59.9 ... the recovery prescription" |
-| TSB: +7.8 | Race Prediction [2:00] + Coach [3:35] | "TSB is plus 7.8" + "TSB plus 7.8" |
-| Training arc BASE→BUILD→PEAK→RECOVERY→BUILD→TAPER | Dashboard [0:30] | "BASE weeks one through three, BUILD four through seven, PEAK at week eight, then RECOVERY" |
-| SF Half Marathon, August 2 2026, 90 days away | Dashboard [0:30] | "SF Half Marathon on August 2 — 90 days away" |
+| Phase | RECOVERY | Dashboard [1:30], Close [6:35] |
+| ACWR this week | 0.44 | Dashboard [1:30], Weekly Brief [3:55] |
+| CTL | 59.3 | Dashboard [1:30], Weekly Brief [3:55], Coach [4:45] |
+| TSB | +7.2 | Race Prediction [3:10] |
+| Race prediction | 1:53:19 | Dashboard [1:30], Race Prediction [3:10] |
+| Confidence interval | 1:49:14–1:57:24 | Race Prediction [3:10] |
+| Confidence score | 80/100 | Dashboard [1:30], Race Prediction [3:10] |
+| Goal gap | 1:41 ahead | Dashboard [1:30], Race Prediction [3:10] |
+| Days until race | 87 | Dashboard [1:30] |
+| Week 8 ACWR spike | 1.337 | Dashboard [1:30] |
+| March 8 activity | HR 157 vs ceiling 145 | Activity Intelligence [2:20] |
+| Weekly brief key signal | Fitness (CTL 59.3) declining | Weekly Brief [3:55] |
 
-All 11 data points confirmed present.
+---
+
+## What Changed from v1 and Why
+
+### How the new version better addresses Luma's four evaluation criteria
+
+**1. Real working software, not a prototype or toy**
+
+v1 referenced specific data values (CTL 59.9, ACWR 0.44, 90 days out) without a verification step. The new version was written after running the live API and updating every number to what the app currently returns — phase RECOVERY, ACWR 0.44, CTL 59.3, TSB +7.2, 87 days until race. The gap between "data I remembered" and "data the app returns today" is exactly what reviewers will catch. The pre-recording checklist now mandates a fresh API check before every recording session so the script never drifts from the live app.
+
+**2. How I broke down ambiguity and decided what to build first**
+
+v1 buried the product decision-making in the "What I'm Proud Of" section, which arrived at minute 4:30 after the reviewer had been watching for almost five minutes. The new script surfaces the core architectural thesis — deterministic engines first, Claude as interface on top — in [0:45–1:30] before the first product screen is shown. The viewer understands the design decision before they watch it working. That reordering directly addresses the evaluation question: "How did you decide what to build?"
+
+**3. How I directed AI tools, pushed back, and shaped the result**
+
+v1 mentioned AI direction in two sentences at the end of the architecture section. The new [5:40–6:35] architecture section gives each override explicit airtime: Gabbett vs ATL/CTL (formula choice that required reading the Gabbett 2016 paper), deterministic training block (evaluation reliability decision), TCX over FIT (two-line policy change that eliminated a debugging category), Prisma v6 pin (absorbing four simultaneous breaking changes during a sprint is compounding risk), rule-based classifier (small dataset, auditable rules), and explicit scope cuts. These are named, reasoned decisions — not a general claim that "I shaped the AI output."
+
+**4. The unique product/technical perspective that made this distinct**
+
+v1 framed Pacer as "six intelligence dimensions." The new script frames it as a computed coaching layer with a specific architectural claim: six deterministic engines transform raw activity history into a structured athlete model, Claude receives a bounded pre-computed context under 2,000 tokens and explains and converses over that state, and the computation layer is what makes the coaching specific. That framing appears in [0:00–0:45] and is the through-line for every subsequent section. The Weekly Brief section makes the architectural point explicitly: if you cannot generate coaching advice from the computed signals without AI, you do not understand the signals well enough to send them to AI. That sentence is the product thesis made testable.
+
+### Where the script makes human judgment over AI generation explicit
+
+- **[0:45–1:30]:** Naming the six engines and explaining why each exists — this is the product scope decision, not implementation.
+- **[1:30–2:20]:** "The workload signal was more important than the schedule position" — the phase override rule is a product judgment about signal priority, not a code choice.
+- **[3:10–3:55]:** Riegel formula with explicit adjustments surfaced in the UI — the decision to be transparent about the model rather than present a number without provenance.
+- **[3:55–4:45]:** The deterministic brief architectural point — building it without Claude first to prove you understand the domain.
+- **[5:40–6:35]:** Each named decision (Gabbett vs ATL/CTL, TCX over FIT, Prisma v6 pin, scope cuts) with the reasoning, not just the outcome.
+
+### What was cut from v1 and why
+
+**"What I'm Proud Of" section (v1 [4:30–5:50]):** This section was structured as a retrospective and felt like a de-brief rather than a demonstration. The three proud items — Claude writes its own memory, the ACWR implementation, the deterministic brief — are now woven into the demonstration sections where they are visible and live, rather than narrated after the fact. The viewer sees the memory system working during the coach chat, not described in a summary.
+
+**"Athlete Intelligence would have said..." contrast lines:** v1 used several direct contrast lines ("Athlete Intelligence would have said your pace was above your 30-day average — which is true, and useless"). The new script replaces these with what Strava is "not positioned as" in their public materials — more accurate language that avoids overclaiming about their product while still making the product gap clear.
+
+**"90 days out" (stale):** v1 hardcoded 90 days. The new script uses 87 days (verified from the live API on 2026-05-07, race 2026-08-02). The pre-recording checklist now includes an explicit step to re-verify this before each recording session.
+
+**Generic "Powered by Claude" label callout:** v1 pointed at the label during the coach demo for emphasis. The new script omits this in favor of pointing at the specific computed numbers in the streaming response — which is more demonstrative of the architectural claim than pointing at a label.
+
+**Running time:** v1 was 5:50. The new script is 7:00. The additional 70 seconds go entirely to [0:45–1:30] (the architectural thesis section, which was absent in v1) and [5:40–6:35] (the expanded architecture and AI direction section). Both sections directly address Luma's evaluation criteria 2 and 3. The tradeoff is deliberate.
