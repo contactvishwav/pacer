@@ -14,6 +14,7 @@ import { buildSystemPrompt } from '../../../../../../lib/coach/system-prompt'
 import { anthropic, COACH_MODEL } from '../../../../../../lib/coach/claude'
 import { buildDeterministicCoachingResponse } from '../../../../../../lib/coach/deterministic'
 import { getSessionMessages, touchSession } from '../../../../../../lib/coach/sessions'
+import { enforceMemoryRetentionPolicy } from '../../../../../../lib/coach/memory'
 import { apiSuccess, apiError } from '../../../../../../lib/schemas/api'
 
 export const runtime    = 'nodejs'
@@ -95,6 +96,8 @@ Invalid: "Athlete prefers..." (missing colon) or "Sure! Athlete: ..." (has pream
         turnRangeEnd:   messageCount,
       },
     })
+
+    void enforceMemoryRetentionPolicy(athleteId)
   } catch (err) {
     console.error('[Pacer] Memory extraction failed silently:', err)
   }

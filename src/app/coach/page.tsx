@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -287,12 +288,18 @@ function ChatHeader({ activityLabel, onMenuOpen }: { activityLabel: string | nul
         </div>
       )}
 
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         {SIGNAL_CHIPS.map(chip => (
           <span key={chip} className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] text-zinc-300">
             {chip}
           </span>
         ))}
+        <Link
+          href="/coach/memories"
+          className="ml-auto text-xs text-muted-foreground underline cursor-pointer hover:text-foreground transition-colors"
+        >
+          Manage memory
+        </Link>
       </div>
     </div>
   )
