@@ -34,7 +34,7 @@ export async function GET() {
     const thresholdHR = Math.round(maxHR * 0.919)   // lactate threshold ~92 % maxHR
     const easyHRCeil  = Math.round(maxHR * 0.785)   // Zone 2 upper ~78–79 % maxHR
 
-    return NextResponse.json(apiSuccess({
+    const response = NextResponse.json(apiSuccess({
       athlete: {
         name:         ctx.athlete.name,
         thresholdHR,
@@ -82,6 +82,8 @@ export async function GET() {
       weeklyBrief:       ctx.weeklyBrief,
       recentActivities:  ctx.recentActivities.slice(0, 5),
     }))
+    response.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
+    return response
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json(

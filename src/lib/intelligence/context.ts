@@ -15,6 +15,7 @@
 
 import { prisma } from '../db/prisma'
 import { anthropic, COACH_MODEL } from '../coach/claude'
+import { getCachedContext, setCachedContext } from './context-cache'
 import type {
   Athlete,
   GoalRace as PrismaGoalRace,
@@ -157,6 +158,16 @@ export interface CoachContext {
 export async function buildAthleteIntelligenceContext(
   athleteId: string,
 ): Promise<AthleteIntelligenceContext> {
+  const cached = getCachedContext(athleteId)
+  if (cached) {
+    console.log(JSON.stringify({
+      event:     'intelligence_context_cache_hit',
+      athleteId,
+      timestamp: new Date().toISOString(),
+    }))
+    return cached
+  }
+
   const now            = new Date()
   const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 86_400_000)
   const eightWeeksAgo  = new Date(now.getTime() -  8 * 7 * 86_400_000)
@@ -339,7 +350,7 @@ export async function buildAthleteIntelligenceContext(
       trainingLoad:        a.trainingLoad,
     }))
 
-  return {
+  const result: AthleteIntelligenceContext = {
     athlete,
     goalRace,
     trainingLoad,
@@ -351,6 +362,13 @@ export async function buildAthleteIntelligenceContext(
     weeklySummaries: last12Summaries,
     coachMemories,
   }
+  setCachedContext(athleteId, result)
+  console.log(JSON.stringify({
+    event:     'intelligence_context_cache_miss',
+    athleteId,
+    timestamp: new Date().toISOString(),
+  }))
+  return result
 }
 
 // ─── buildCoachContext ────────────────────────────────────────────────────────

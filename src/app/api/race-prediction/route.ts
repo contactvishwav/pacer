@@ -30,7 +30,7 @@ export async function GET() {
   try {
     const ctx = await buildAthleteIntelligenceContext(athlete.id)
 
-    return NextResponse.json(apiSuccess({
+    const response = NextResponse.json(apiSuccess({
       prediction: ctx.racePrediction,
       goalRace: ctx.goalRace ? {
         name:              ctx.goalRace.raceName,
@@ -48,6 +48,8 @@ export async function GET() {
         weeksOfData: ctx.weeklySummaries.length,
       },
     }))
+    response.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
+    return response
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json(

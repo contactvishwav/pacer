@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { buildAthleteIntelligenceContext } from '../../../../lib/intelligence/context'
+import { getCacheStats } from '../../../../lib/intelligence/context-cache'
 
 export const runtime  = 'nodejs'
 export const dynamic  = 'force-dynamic'
@@ -28,5 +29,5 @@ export async function GET() {
   const ctx = await buildAthleteIntelligenceContext(athlete.id)
 
   // Serialize safely — Dates become ISO strings via JSON
-  return NextResponse.json(ctx)
+  return NextResponse.json({ ...ctx, cacheStats: getCacheStats() })
 }
