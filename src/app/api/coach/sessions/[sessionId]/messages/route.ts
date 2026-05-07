@@ -15,6 +15,7 @@ import { anthropic, COACH_MODEL } from '../../../../../../lib/coach/claude'
 import { buildDeterministicCoachingResponse } from '../../../../../../lib/coach/deterministic'
 import { getSessionMessages, touchSession } from '../../../../../../lib/coach/sessions'
 import { enforceMemoryRetentionPolicy } from '../../../../../../lib/coach/memory'
+import { classifyCoachingResponse } from '../../../../../../lib/coach/safety-classifier'
 import { apiSuccess, apiError } from '../../../../../../lib/schemas/api'
 
 export const runtime    = 'nodejs'
@@ -249,14 +250,36 @@ export async function POST(
           }
         }
 
-        const suggestedMatch    = fullText.match(/→\s+(.+)$/)
+        // Run safety classification — appends a disclaimer to the stream and
+        // stored content if the response crosses the health-advice boundary.
+        const SAFETY_DISCLAIMER = '\n\n---\n_Note: For medical concerns or injury assessment, please consult a qualified sports medicine professional._'
+
+        const safetyResult = await classifyCoachingResponse(fullText, anthropic)
+        let storedContent = fullText
+
+        if (!safetyResult.passed) {
+          console.log(JSON.stringify({
+            event:     'safety_disclaimer_appended',
+            reason:    safetyResult.reason,
+            sessionId,
+            timestamp: new Date().toISOString(),
+          }))
+          storedContent = fullText + SAFETY_DISCLAIMER
+          const disclaimerTokens = SAFETY_DISCLAIMER.split(' ')
+          for (const token of disclaimerTokens) {
+            controller.enqueue(encoder.encode(token + ' '))
+            await new Promise(r => setTimeout(r, 15))
+          }
+        }
+
+        const suggestedMatch    = storedContent.match(/→\s+(.+)$/)
         const suggestedQuestion = suggestedMatch?.[1]?.trim() ?? null
 
         await prisma.coachMessage.create({
           data: {
             sessionId,
             role:     'ASSISTANT',
-            content:  fullText,
+            content:  storedContent,
             metadata: suggestedQuestion
               ? { suggestedQuestions: [suggestedQuestion] }
               : undefined,
@@ -266,7 +289,7 @@ export async function POST(
         // Cost estimation — visible in Vercel function logs from day one
         const INPUT_COST_PER_MTK  = 3.00   // claude-sonnet-4-6 input $/MTok
         const OUTPUT_COST_PER_MTK = 15.00  // claude-sonnet-4-6 output $/MTok
-        const estimatedOutputTokens = Math.ceil(fullText.length / 4)
+        const estimatedOutputTokens = Math.ceil(storedContent.length / 4)
         const estimatedCostUSD =
           (contextTokenEstimate / 1_000_000 * INPUT_COST_PER_MTK) +
           (estimatedOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTK)
@@ -280,7 +303,7 @@ export async function POST(
         }))
 
         void touchSession(sessionId)
-        void maybeExtractMemory(athlete.id, sessionId, userMessage, fullText)
+        void maybeExtractMemory(athlete.id, sessionId, userMessage, storedContent)
 
         controller.close()
 

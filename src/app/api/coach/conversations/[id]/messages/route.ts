@@ -12,6 +12,7 @@ import { buildSystemPrompt } from '../../../../../../lib/coach/system-prompt'
 import { anthropic, COACH_MODEL } from '../../../../../../lib/coach/claude'
 import { buildDeterministicCoachingResponse } from '../../../../../../lib/coach/deterministic'
 import { enforceMemoryRetentionPolicy } from '../../../../../../lib/coach/memory'
+import { classifyCoachingResponse } from '../../../../../../lib/coach/safety-classifier'
 import { apiSuccess, apiError } from '../../../../../../lib/schemas/api'
 
 export const runtime    = 'nodejs'
@@ -292,8 +293,33 @@ export async function POST(
           }
         }
 
+        // Run safety classification — appends a disclaimer to the stream and
+        // stored content if the response crosses the health-advice boundary.
+        // The streamed tokens already reached the client; we cannot retract them,
+        // but we can append a disclaimer and store the amended content in the DB.
+        const SAFETY_DISCLAIMER = '\n\n---\n_Note: For medical concerns or injury assessment, please consult a qualified sports medicine professional._'
+
+        const safetyResult = await classifyCoachingResponse(fullText, anthropic)
+        let storedContent = fullText
+
+        if (!safetyResult.passed) {
+          console.log(JSON.stringify({
+            event:   'safety_disclaimer_appended',
+            reason:  safetyResult.reason,
+            conversationId,
+            timestamp: new Date().toISOString(),
+          }))
+          storedContent = fullText + SAFETY_DISCLAIMER
+          // Stream the disclaimer token by token so it appears naturally
+          const disclaimerTokens = SAFETY_DISCLAIMER.split(' ')
+          for (const token of disclaimerTokens) {
+            controller.enqueue(encoder.encode(token + ' '))
+            await new Promise(r => setTimeout(r, 15))
+          }
+        }
+
         // Extract suggested question from "→ ..." line for metadata
-        const suggestedMatch = fullText.match(/→\s+(.+)$/)
+        const suggestedMatch = storedContent.match(/→\s+(.+)$/)
         const suggestedQuestion = suggestedMatch?.[1]?.trim() ?? null
 
         // Persist assistant message with optional metadata
@@ -301,7 +327,7 @@ export async function POST(
           data: {
             conversationId,
             role:     'ASSISTANT',
-            content:  fullText,
+            content:  storedContent,
             metadata: suggestedQuestion
               ? { suggestedQuestions: [suggestedQuestion] }
               : undefined,
@@ -311,7 +337,7 @@ export async function POST(
         // Cost estimation — visible in Vercel function logs from day one
         const INPUT_COST_PER_MTK  = 3.00   // claude-sonnet-4-6 input $/MTok
         const OUTPUT_COST_PER_MTK = 15.00  // claude-sonnet-4-6 output $/MTok
-        const estimatedOutputTokens = Math.ceil(fullText.length / 4)
+        const estimatedOutputTokens = Math.ceil(storedContent.length / 4)
         const estimatedCostUSD =
           (contextTokenEstimate / 1_000_000 * INPUT_COST_PER_MTK) +
           (estimatedOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTK)
@@ -326,7 +352,7 @@ export async function POST(
 
         // Fire-and-forget memory extraction — runs after stream is closed,
         // never blocks the response.
-        void maybeExtractMemory(athlete.id, conversationId, userMessage, fullText)
+        void maybeExtractMemory(athlete.id, conversationId, userMessage, storedContent)
 
         controller.close()
 
