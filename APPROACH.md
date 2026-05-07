@@ -414,15 +414,119 @@ The pressure points above cluster into two categories. Product-layer gaps — au
 
 ## What I Would Build Next
 
-**Strava OAuth import with idempotent activity sync.** The architecture is already separated — wiring up a real OAuth flow populates the same Prisma tables the intelligence engines read from. The generated data path stays as demo and fallback.
+The current slice proves the intelligence layer works: six deterministic engines compute a complete coaching state over a structured training block, Claude explains and responds over that pre-computed state, and every numeric output is testable against a seeded dataset. The next work falls into three phases. Phase 1 turns the vertical slice into a real-user service by wiring ingestion, authentication, and data isolation. Phase 2 deepens the intelligence model with recovery and adaptation signals that ACWR alone cannot capture. Phase 3 delivers coaching proactively and safely at scale through plan generation, brief delivery, and the operational infrastructure a production coaching service requires.
 
-**Multi-athlete with proper authentication.** The `athleteId` abstraction makes this largely additive: auth middleware, Iron Session for per-user session management, database-level data isolation. The intelligence layer does not need to change.
+---
 
-**Physiological drift detection.** Compare current training responses (HR at a given pace) to baseline responses from earlier in the training block. Detecting that easy pace is getting easier at the same HR is the most actionable signal you can give a runner, and Strava has all the data for it.
+### 1. Real-User Ingestion: Strava OAuth and Activity Sync Pipeline
 
-**HRV and sleep correlation via Garmin Connect or Apple Health.** Cross-referencing ACWR with recovery metrics would substantially improve the injury-risk signal and allow the coach to distinguish "ACWR is high because you trained hard" from "ACWR is high and you also slept poorly — back off."
+**What to build:** Strava OAuth flow, paginated activity import with rate-limit handling and exponential backoff, idempotent upsert on `stravaActivityId`, duplicate detection, partial-import recovery from last-synced activity, and visible sync status in the UI.
 
-**Weekly brief push delivery.** The brief is already generated deterministically server-side; delivery via email or push notification is a pipeline question. An athlete who opens Pacer once per week after their long run would benefit most from a push rather than a pull.
+**Why users need it:** The deterministic seeded dataset proves the intelligence layer works. Real athletes need their own training history in the system before Pacer can coach them on their specific training block, not on a generic demo arc.
+
+**Why it comes after the current slice:** The architecture already separates ingestion from intelligence — Strava writes into the same Prisma tables the seeded data uses, with no changes to any coaching engine. The ingestion work is plumbing on top of a correctly designed schema, not intelligence redesign.
+
+**Technical complexity added:** Strava API rate limits (non-upload requests are capped at 100 per 15 minutes per user), background job infrastructure for long-running historical imports, webhook handling for new-activity notifications, and stream-level HR and GPS ingestion for the workout classifier.
+
+---
+
+### 2. Multi-Athlete Authentication and Data Isolation
+
+**What to build:** Iron Session middleware, OAuth session management, replacing `findFirst()` with athlete-scoped `findUnique({ where: { id: session.athleteId } })` across all route handlers, per-user settings, and cross-user data isolation tests.
+
+**Why users need it:** A coaching product with more than one user requires guaranteed data separation. The current single-athlete demo is a deliberate scope decision — the schema is already correctly structured for multi-tenancy, but the route layer does not enforce it without authentication middleware.
+
+**Why it comes after ingestion:** Authentication is additive on a correctly scoped schema — every entity is already `athleteId`-keyed, and the intelligence layer requires no changes. Auth comes after ingestion is proven because the first real user will likely authenticate via Strava OAuth, making both concerns naturally sequential.
+
+**Technical complexity added:** Session management, token refresh handling, per-user privacy controls, and regression tests for cross-user data leaks. Not architecturally complex but operationally required before any public launch.
+
+---
+
+### 3. Normalized Signal Layer for Recovery and Schedule Integrations
+
+**What to build:** An `AthleteSignal` abstraction that normalizes inputs from multiple authorized sources — Strava, Garmin Connect, Apple HealthKit, calendar data — into a consistent schema before they reach the intelligence engines.
+
+**Why users need it:** Without a normalized layer, each new data source adds provider-specific conditionals throughout the coaching engines. A runner using Garmin and a runner using Apple Watch would require different code paths to reach the same coaching logic — the abstraction makes subsequent integrations additive rather than disruptive.
+
+**Why it comes after auth and ingestion:** The abstraction only makes sense once real multi-source data is flowing through authenticated user sessions. Building it against the seeded dataset would be premature — there is nothing to normalize until real provider diversity exists.
+
+**Technical complexity added:** A signal normalization layer between ingestion and intelligence, provider-specific adapters, and confidence scoring for signals that are unavailable or low-quality. This is the architectural investment that makes every subsequent integration a single adapter, not a cross-cutting change.
+
+---
+
+### 4. Recovery-Aware Coaching
+
+**What to build:** Integration of HRV, resting HR, sleep quality, and subjective fatigue via Garmin Connect OAuth, Apple HealthKit authorized sync, or similar user-consented data connections. Feed these signals into the ACWR interpretation and the weekly brief prescription.
+
+**Why users need it:** ACWR detects load spikes but cannot distinguish "high load, well recovered" from "high load, poorly recovered." A runner who slept four hours needs different coaching than a runner with the same ACWR and eight hours of sleep. Recovery-aware coaching is the highest-value intelligence extension available without collecting new workout data.
+
+**Why it comes after the normalized signal layer:** Recovery signals from different providers need the normalization abstraction to reach the coaching engines consistently. Without it, Garmin HRV and Apple HRV require separate conditional code paths throughout the intelligence layer — exactly the structural coupling the abstraction is designed to prevent.
+
+**Technical complexity added:** Provider OAuth flows, daily recovery data ingestion and aggregation, cross-signal correlation logic between ACWR and recovery indicators, and UI for displaying recovery context alongside training load signals.
+
+---
+
+### 5. Physiological Drift and Adaptation Detection
+
+**What to build:** A drift detection engine that compares heart rate at a given pace and pace at a given heart rate across comparable workouts over time. Surface whether aerobic efficiency is improving, stable, or declining as a new intelligence dimension alongside ACWR and phase detection.
+
+**Why users need it:** CTL, ATL, and ACWR track training load. Drift detection tracks whether that load is producing adaptation. An athlete whose easy-run pace improves 15 seconds per kilometer at the same heart rate over eight weeks is getting fitter in a way no current signal captures. This is the difference between load management and adaptation coaching.
+
+**Why it comes after ingestion and recovery:** Drift detection requires a sufficient history of comparable workouts at similar effort levels. The seeded 12-week block can demonstrate the concept, but meaningful drift signals require real longitudinal data across months and recovery context to control for fatigue when comparing sessions.
+
+**Technical complexity added:** Workout comparability logic (matching similar-effort sessions across weeks with effort-level normalization), regression or EMA-based drift calculation, and a new intelligence engine integrated into `buildAthleteIntelligenceContext`. This is the highest-complexity next intelligence dimension and the one most likely to differentiate Pacer at the product level.
+
+---
+
+### 6. Guardrailed Training-Plan Generation
+
+**What to build:** Constrained plan generation that produces a periodized week-by-week schedule respecting progressive overload limits, mandatory recovery weeks, workout-type distribution ratios, race-date taper constraints, ACWR gates that block load increases when workload risk is elevated, and user schedule constraints (available days per week, time per session).
+
+**Why users need it:** The current coach advises on an existing plan. Many athletes do not have a structured plan — they need one built for them. Plan generation closes the gap between reactive coaching (what did last week mean?) and proactive coaching (what should I do for the next 10 weeks?).
+
+**Why it comes after recovery-aware coaching:** Plan generation quality depends on accurate fitness, fatigue, and recovery signals. A plan generated without recovery context might prescribe a hard workout on a day the athlete is deeply fatigued. Recovery awareness is the prerequisite for safe prescription generation.
+
+**Technical complexity added:** Progression logic, constraint satisfaction for user schedule, ACWR simulation to predict future workload risk from a proposed plan, and careful product framing around coaching liability. Plan generation carries more coaching responsibility than analysis — every prescription needs appropriate uncertainty and professional consultation framing.
+
+---
+
+### 7. Weekly Brief Delivery
+
+**What to build:** Email delivery, push notification, or calendar integration for the weekly brief. Include unsubscribe controls, delivery timing preferences, and a settings UI for notification channel selection.
+
+**Why users need it:** The weekly brief is already generated deterministically server-side without a Claude call. Most athletes who would benefit from it will not open the app unprompted every Monday. Proactive delivery converts a pull interaction into a push interaction without changing the content layer.
+
+**Why it comes after auth:** Delivery requires per-user preferences and notification opt-in, which require authenticated sessions. The brief content itself is already production-ready — this is a delivery pipeline question, not a content question.
+
+**Technical complexity added:** Email provider integration (SendGrid or Resend), push notification infrastructure, scheduled job triggering every Monday morning, preference storage, and unsubscribe handling. The brief generation code requires no changes.
+
+---
+
+### 8. Coach Memory Controls and Production Trust
+
+This work is partially implemented. The current build includes a memory management API (`GET /api/coach/memories`, `DELETE /api/coach/memories`, `DELETE /api/coach/memories/[id]`, `PATCH /api/coach/memories/[id]`), a `/coach/memories` management page where athletes can view, edit, and delete individual memories or clear all memories at once, and a 25-memory per-athlete retention limit with oldest-first eviction enforced via `enforceMemoryRetentionPolicy` after each extraction turn.
+
+**What remains:** Per-user memory isolation enforced after multi-user auth is implemented (currently all reviewer sessions share the same athlete's memory pool), privacy disclosure in the settings UI explaining what is stored and how it is used, GDPR data export including memory records, and application-layer encryption for sensitive coaching context such as injury history and schedule constraints.
+
+**Why this matters:** Coaching memory stores personal context — training preferences, injury history, schedule constraints. Users need to know what the coach remembers and be able to correct or remove it. Trust in a coaching product depends on transparency about persistent personalization, not just on the quality of the coaching itself.
+
+**Technical complexity added:** Memory audit trail, encryption at rest for sensitive fields, GDPR export pipeline, and multi-user memory isolation after authentication is implemented.
+
+---
+
+### 9. Observability, Cost Controls, and Sync Health
+
+**What to build:** Structured logging pipeline to an external aggregator (Vercel Log Drains), error tracking (Sentry), model latency and cost dashboards, fallback-rate monitoring with alerting when the deterministic-response rate exceeds 10%, per-user daily message quotas enforced in the database, ingestion failure alerts, and sync health status visible to the user when activity import stalls.
+
+**Why users need it:** The current implementation emits structured JSON console events at key lifecycle points (cache hit/miss, safety classification failures, cost estimates), and the deterministic fallback prevents user-facing failures when Claude is unavailable. What is missing is the aggregation and alerting layer: if Claude API latency degrades or costs spike, engineering needs signals before users file complaints. Users also need visibility when their data sync is stalled rather than receiving coaching based on stale activity data.
+
+**Why it comes after the service has real users:** Observability tooling without traffic to observe provides no signal. The current validation scripts, deterministic fallback, and structured console events are the appropriate substitute for the single-user demo environment.
+
+**Technical complexity added:** Log aggregation configuration, Sentry SDK integration, cost accounting per user and per model call, alerting rules, and a sync health status model in the database that the UI can query.
+
+---
+
+Each phase above builds on the proof established by the current slice — that deterministic computation over a structured training block produces more specific and actionable coaching than per-activity commentary — and extends it toward a service that can coach real athletes on their real training history with the reliability, privacy, and operational visibility a production product requires.
 
 ---
 
