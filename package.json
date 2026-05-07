@@ -20,7 +20,11 @@
     "validate:weekly-brief": "tsx scripts/validate-weekly-brief.ts",
     "validate:context": "tsx scripts/validate-context.ts",
     "validate:tcx": "tsx scripts/validate-tcx.ts",
-    "validate:safety": "tsx scripts/validate-safety.ts"
+    "validate:safety": "tsx scripts/validate-safety.ts",
+    "validate:context-drift": "tsx scripts/validate-context-drift.ts",
+    "validate:coaching": "tsx scripts/validate-coaching.ts",
+    "validate:prompt-constraints": "tsx scripts/validate-prompt-constraints.ts",
+    "validate:regression": "tsx scripts/validate-regression.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

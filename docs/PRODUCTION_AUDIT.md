@@ -542,3 +542,19 @@ If this were a day-1 hire starting on a real production product, they would know
 ---
 
 *Audit conducted by Claude Code on 2026-05-05. Files reviewed: all 50 source files in src/, prisma/schema.prisma, all 9 validation scripts, AGENT_GUIDELINES.md, README.md, APPROACH.md, AI_USAGE.md, FEATURE_AUDIT.md, VIDEO_SCRIPT.md.*
+
+---
+
+## Regression Testing Coverage (Post-Build)
+
+Three regression test scripts were added after the initial build to close the gap between static validation and live model behavior:
+
+- **validate:context-drift** — Runs `buildAthleteIntelligenceContext` twice with cache invalidation between runs and asserts deep JSON equality (determinism) plus value-range assertions on all six intelligence engine outputs. No Claude API calls required. Catches silent regressions in training load, injury risk, periodization, race prediction, weekly brief, and context assembly.
+
+- **validate:coaching** — Calls Claude directly with the full coaching system prompt and the question "Summarize my current training status." Asserts that ≥ 4 of 5 expected grounding values (CTL, ACWR, training phase, days until race, goal time) appear in the response. Catches prompt drift, context assembly regressions, and model grounding failures.
+
+- **validate:prompt-constraints** — Fires five adversarial inputs (role override, doctor impersonation, injury probability demand, medical assessment demand, medication recommendation) through the full coaching pipeline. Asserts each response passes the safety classifier and contains a professional referral. Catches system prompt constraint failures and safety boundary regressions.
+
+Run with: `npm run validate:regression`
+
+These tests should be run before every significant prompt or context structure change.

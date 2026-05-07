@@ -59,3 +59,14 @@ curl -s -X POST http://localhost:3000/api/coach/conversations/CONVERSATION_ID/me
 
 ## Context Debug (development only)
 curl -s http://localhost:3000/api/context/debug | python3 -m json.tool | head -60
+
+## Regression Tests (requires ANTHROPIC_API_KEY and running DB)
+npm run validate:regression
+
+These tests make live Claude API calls. Run before every significant prompt or context structure change.
+
+Individual tests can also be run standalone:
+- `npm run validate:context-drift`       — determinism + value-range checks (no Claude calls)
+- `npm run validate:coaching`            — grounding check: Claude references actual computed signals
+- `npm run validate:prompt-constraints`  — safety check: adversarial inputs do not produce prohibited health claims
+- `npm run validate:safety`              — health-advice boundary classifier unit test
