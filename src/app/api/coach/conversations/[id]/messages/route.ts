@@ -7,7 +7,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../../../lib/db/prisma'
-import { buildCoachContext } from '../../../../../../lib/intelligence/context'
+import { buildCoachContext, estimateContextTokens } from '../../../../../../lib/intelligence/context'
 import { buildSystemPrompt } from '../../../../../../lib/coach/system-prompt'
 import { anthropic, COACH_MODEL } from '../../../../../../lib/coach/claude'
 import { buildDeterministicCoachingResponse } from '../../../../../../lib/coach/deterministic'
@@ -56,6 +56,12 @@ async function maybeExtractMemory(
   if (!messageIsLong && !hasHighSignalKeyword) return
 
   try {
+    // Per-conversation extraction limit — diminishing returns past 5 memories
+    const existingMemoriesForConversation = await prisma.coachMemory.count({
+      where: { conversationId },
+    })
+    if (existingMemoriesForConversation >= 5) return
+
     const extractionResponse = await anthropic.messages.create({
       model:      COACH_MODEL,
       max_tokens: 150,
@@ -176,6 +182,21 @@ export async function POST(
     return NextResponse.json(apiError('Conversation not found.'), { status: 404 })
   }
 
+  const MAX_MESSAGES_PER_CONVERSATION = 50
+
+  const conversationMessageCount = await prisma.coachMessage.count({
+    where: { conversationId: conversation.id },
+  })
+  if (conversationMessageCount >= MAX_MESSAGES_PER_CONVERSATION) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Conversation limit reached (${MAX_MESSAGES_PER_CONVERSATION} messages). Start a new conversation to continue coaching.`,
+      },
+      { status: 429 },
+    )
+  }
+
   let userMessage: string
   try {
     const body = await request.json()
@@ -201,6 +222,7 @@ export async function POST(
     athlete.id,
     conversation.activityId ?? undefined,
   )
+  const contextTokenEstimate = estimateContextTokens(coachCtx)
 
   const systemPrompt = buildSystemPrompt(coachCtx)
 
@@ -285,6 +307,22 @@ export async function POST(
               : undefined,
           },
         })
+
+        // Cost estimation — visible in Vercel function logs from day one
+        const INPUT_COST_PER_MTK  = 3.00   // claude-sonnet-4-6 input $/MTok
+        const OUTPUT_COST_PER_MTK = 15.00  // claude-sonnet-4-6 output $/MTok
+        const estimatedOutputTokens = Math.ceil(fullText.length / 4)
+        const estimatedCostUSD =
+          (contextTokenEstimate / 1_000_000 * INPUT_COST_PER_MTK) +
+          (estimatedOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTK)
+        console.log(JSON.stringify({
+          event:               'coach_turn_cost_estimate',
+          conversationId,
+          inputTokensEstimate:  contextTokenEstimate,
+          outputTokensEstimate: estimatedOutputTokens,
+          estimatedCostUSD:     estimatedCostUSD.toFixed(6),
+          timestamp:            new Date().toISOString(),
+        }))
 
         // Fire-and-forget memory extraction — runs after stream is closed,
         // never blocks the response.

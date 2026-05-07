@@ -14,6 +14,7 @@
 //       Targets < 2,000 tokens before the system prompt and user message.
 
 import { prisma } from '../db/prisma'
+import { anthropic, COACH_MODEL } from '../coach/claude'
 import type {
   Athlete,
   GoalRace as PrismaGoalRace,
@@ -486,13 +487,43 @@ export async function buildCoachContext(
     memorySummary,
   }
 
-  // Step 6: token estimate warning
-  const tokenCount = estimateContextTokens(context)
+  // Step 6: token budget enforcement with cascading compression.
+  // Uses the Anthropic countTokens API for precision; falls back to char/4
+  // estimate only if the API call fails. Pre-filter skips the API call for
+  // contexts that are clearly under budget (estimate < 1500).
+  async function countTokensPrecise(ctx: CoachContext): Promise<number> {
+    try {
+      const res = await anthropic.messages.countTokens({
+        model:    COACH_MODEL,
+        system:   JSON.stringify(ctx),
+        messages: [{ role: 'user', content: '' }],
+      })
+      return res.input_tokens
+    } catch {
+      return estimateContextTokens(ctx)
+    }
+  }
+
+  const quickEstimate = estimateContextTokens(context)
+  let tokenCount = quickEstimate < 1500
+    ? quickEstimate
+    : await countTokensPrecise(context)
+
   if (tokenCount > 2500) {
-    console.warn(
-      `[Pacer] Coach context exceeds 2,500 estimated tokens (${tokenCount}) — ` +
-      `consider compressing conversation history`,
-    )
+    console.warn(`[Pacer] Context ${tokenCount} tokens > 2500 — compressing conversation history to last 4 turns`)
+    context.conversationHistory = context.conversationHistory.slice(-4)
+    tokenCount = await countTokensPrecise(context)
+  }
+  if (tokenCount > 2500) {
+    console.warn(`[Pacer] Context still ${tokenCount} tokens > 2500 — trimming memory summary to 200 chars`)
+    if (context.memorySummary) {
+      context.memorySummary = context.memorySummary.slice(0, 200)
+      tokenCount = await countTokensPrecise(context)
+    }
+  }
+  if (tokenCount > 2500) {
+    console.warn(`[Pacer] Context still ${tokenCount} tokens > 2500 — trimming recent activities to last 5`)
+    context.recentActivities = context.recentActivities.slice(-5)
   }
 
   return context

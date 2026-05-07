@@ -658,6 +658,17 @@ export default function CoachPage() {
         },
       )
 
+      if (response.status === 429) {
+        const errorData = await response.json() as { error?: string }
+        toast.error(errorData.error || 'Message limit reached.')
+        setMessages(prev => {
+          const last = prev[prev.length - 1]
+          return last?.role === 'assistant' && last.content === '' ? prev.slice(0, -1) : prev
+        })
+        setIsStreaming(false)
+        return
+      }
+
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
 
       const reader  = response.body.getReader()

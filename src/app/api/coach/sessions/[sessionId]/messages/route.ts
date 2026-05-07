@@ -9,7 +9,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../../../lib/db/prisma'
-import { buildCoachContext } from '../../../../../../lib/intelligence/context'
+import { buildCoachContext, estimateContextTokens } from '../../../../../../lib/intelligence/context'
 import { buildSystemPrompt } from '../../../../../../lib/coach/system-prompt'
 import { anthropic, COACH_MODEL } from '../../../../../../lib/coach/claude'
 import { buildDeterministicCoachingResponse } from '../../../../../../lib/coach/deterministic'
@@ -54,6 +54,12 @@ async function maybeExtractMemory(
   if (!messageIsLong && !hasHighSignalKeyword) return
 
   try {
+    // Per-session extraction limit — diminishing returns past 5 memories
+    const existingMemoriesForConversation = await prisma.coachMemory.count({
+      where: { conversationId: sessionId },
+    })
+    if (existingMemoriesForConversation >= 5) return
+
     const extractionResponse = await anthropic.messages.create({
       model:      COACH_MODEL,
       max_tokens: 150,
@@ -173,6 +179,8 @@ export async function POST(
 
   // Build context scoped to this session's message history
   const coachCtx = await buildCoachContext(athlete.id, activityId, sessionId)
+  const contextTokenEstimate = estimateContextTokens(coachCtx)
+
   const systemPrompt = buildSystemPrompt(coachCtx)
 
   const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
@@ -254,6 +262,22 @@ export async function POST(
               : undefined,
           },
         })
+
+        // Cost estimation — visible in Vercel function logs from day one
+        const INPUT_COST_PER_MTK  = 3.00   // claude-sonnet-4-6 input $/MTok
+        const OUTPUT_COST_PER_MTK = 15.00  // claude-sonnet-4-6 output $/MTok
+        const estimatedOutputTokens = Math.ceil(fullText.length / 4)
+        const estimatedCostUSD =
+          (contextTokenEstimate / 1_000_000 * INPUT_COST_PER_MTK) +
+          (estimatedOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTK)
+        console.log(JSON.stringify({
+          event:               'coach_turn_cost_estimate',
+          sessionId,
+          inputTokensEstimate:  contextTokenEstimate,
+          outputTokensEstimate: estimatedOutputTokens,
+          estimatedCostUSD:     estimatedCostUSD.toFixed(6),
+          timestamp:            new Date().toISOString(),
+        }))
 
         void touchSession(sessionId)
         void maybeExtractMemory(athlete.id, sessionId, userMessage, fullText)
