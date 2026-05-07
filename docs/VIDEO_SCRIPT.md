@@ -1,4 +1,4 @@
-# Video Script — Pacer Demo (7–7.5 min)
+# Video Script — Pacer Demo (7–7.25 min)
 
 **Format:** Loom screen recording
 **Audience:** Director of Engineering and hiring manager at Luma AI
@@ -24,25 +24,31 @@ Pacer computes the athlete's training state first — from 12 weeks of longitudi
 
 ---
 
-## [0:45–1:30] — Why This Is Technically Different (45 seconds)
+## [0:45–1:25] — Why This Is Technically Different (40 seconds)
 
 **Screen:** Stay on dashboard. Move to src/lib/intelligence/ briefly if possible, then back.
 
-The naive implementation of "AI coaching" sends activity data to Claude and asks it to reason. That produces plausible-sounding but generic advice — Claude has no stable coaching model to work from, and the outputs are not testable or reproducible.
+The naive implementation sends activity data to Claude and asks it to reason. That produces generic advice — no stable coaching model, no reproducibility.
 
 Pacer does not do that.
 
-Raw activity history goes into Prisma and Supabase. Six deterministic intelligence engines transform it into a unified athlete context object. That object powers every UI surface and the coach chat.
+Raw activity history goes into Prisma and Supabase. Six deterministic engines transform it into a unified athlete context: training load — CTL, ATL, TSB — ACWR workload-risk, Riegel race prediction, workout classification with execution evaluation, periodization phase detection, and a weekly brief that generates coaching prescriptions without any AI call.
 
-Six engines:
+That context powers every surface — dashboard, activity detail, race goal, weekly brief, coach chat. All from the same pre-computed state.
 
-Banister-style training load computing CTL, ATL, and TSB. Gabbett-style ACWR for workload-risk spike detection. Riegel formula for race prediction with confidence intervals. A rule-based workout classifier with execution evaluation. A periodization phase detector anchored to the race date. A deterministic weekly brief generator that produces coaching prescriptions without any AI call.
-
-Because the computation layer runs first, every surface in the product — dashboard, activity detail, race goal, weekly brief, coach chat — uses the same pre-computed state. The coaching is consistent, testable, and reproducible. Claude makes it conversational. The engines make it specific.
+Claude makes it conversational. The engines make it specific.
 
 ---
 
-## [1:30–2:20] — Dashboard: Current Coaching State (50 seconds)
+**Backup version (25–30 seconds) — use if the video runs long:**
+
+The naive implementation sends activity data to Claude and gets generic advice back. Pacer computes the athlete state first — six deterministic engines producing training load, workload-risk, race trajectory, workout classification, phase detection, and a weekly brief — then Claude receives that bounded pre-computed context and explains it. The computation layer is what makes the coaching specific. Claude is what makes it conversational.
+
+*Note: Use the primary version unless the total recording is running more than 30 seconds over 7:00. The backup version cuts the engine list to a single sentence — use it only if the list pacing feels slow during recording.*
+
+---
+
+## [1:25–2:15] — Dashboard: Current Coaching State (50 seconds)
 
 **Screen:** /dashboard. Scroll slowly. Let each card sit for 3–4 seconds.
 
@@ -60,7 +66,7 @@ Coach CTA: "What should I ask my coach?" — the suggested questions are wired t
 
 ---
 
-## [2:20–3:10] — Activity Intelligence: Intent vs Execution (50 seconds)
+## [2:15–3:05] — Activity Intelligence: Intent vs Execution (50 seconds)
 
 **Screen:** /activities → page 2 → click March 8 "8.0km Steady State Run"
 
@@ -86,7 +92,7 @@ The coach opens with the question pre-filled. SessionStorage bridge — one line
 
 ---
 
-## [3:10–3:55] — Race Prediction: Honest Trajectory Modeling (45 seconds)
+## [3:05–3:50] — Race Prediction: Honest Trajectory Modeling (45 seconds)
 
 **Screen:** /race-goal
 
@@ -104,7 +110,7 @@ The system identifies the best qualifying effort — lowest average pace from TE
 
 ---
 
-## [3:55–4:45] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
+## [3:50–4:40] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
 
 **Screen:** /weekly-brief
 
@@ -126,7 +132,7 @@ The deterministic brief also proves something about the design philosophy: if yo
 
 ---
 
-## [4:45–6:00] — Coach Chat: Claude as Interface Over Computed State (1:15)
+## [4:40–5:55] — Coach Chat: Claude as Interface Over Computed State (1:15)
 
 **Screen:** /coach — show the sidebar of named sessions briefly, then start a new message.
 
@@ -162,7 +168,7 @@ If the Anthropic API is unavailable, a deterministic fallback streams computed c
 
 ---
 
-## [6:00–6:55] — Architecture Decisions and AI Direction (55 seconds)
+## [5:55–6:50] — Architecture Decisions and AI Direction (55 seconds)
 
 **Screen:** src/lib/intelligence/ folder → buildAthleteIntelligenceContext → src/app/api/dashboard/route.ts
 
@@ -190,7 +196,7 @@ Other explicit decisions: TCX over FIT because FIT is binary and risky to genera
 
 ---
 
-## [6:55–7:20] — Close (25 seconds)
+## [6:50–7:15] — Close (25 seconds)
 
 **Screen:** Back to /dashboard.
 
@@ -233,16 +239,16 @@ Before pressing record:
 | Section | Duration | Running Total |
 |---|---|---|
 | Product thesis and problem | 0:45 | 0:45 |
-| Why technically different | 0:45 | 1:30 |
-| Dashboard walkthrough | 0:50 | 2:20 |
-| Activity intelligence | 0:50 | 3:10 |
-| Race prediction | 0:45 | 3:55 |
-| Weekly brief | 0:50 | 4:45 |
-| Coach chat live + memories | 1:15 | 6:00 |
-| Architecture and AI direction | 0:55 | 6:55 |
-| Close | 0:25 | 7:20 |
+| Why technically different | 0:40 | 1:25 |
+| Dashboard walkthrough | 0:50 | 2:15 |
+| Activity intelligence | 0:50 | 3:05 |
+| Race prediction | 0:45 | 3:50 |
+| Weekly brief | 0:50 | 4:40 |
+| Coach chat live + memories | 1:15 | 5:55 |
+| Architecture and AI direction | 0:55 | 6:50 |
+| Close | 0:25 | 7:15 |
 
-**Total: 7:20** — under the 7:30 ceiling. The 20-second addition is the /coach/memories navigation in the coach chat section. The first-person voice insertions (classifier story, brief without Claude, Gabbett confidence) are spoken during existing screen time — navigation, reading, and pause moments — and do not add material runtime. Keep delivery crisp.
+**Total: 7:15** — under the 7:30 ceiling. The "Why technically different" section was tightened from 45s to 40s by collapsing the six-engine list into a single inline sentence. The /coach/memories navigation adds 20s to coach chat. The first-person voice insertions (classifier story, brief without Claude, Gabbett confidence) are spoken during existing screen time and do not add material runtime. Keep delivery crisp.
 
 ---
 
