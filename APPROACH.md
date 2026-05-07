@@ -532,4 +532,4 @@ Each phase above builds on the proof established by the current slice — that d
 
 ## Live URL
 
-[Vercel URL — to be added after deployment]
+https://lumalabs-eng-take-home-e066572123aa-two.vercel.app

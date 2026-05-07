@@ -4,7 +4,7 @@
 **Audience:** Director of Engineering and hiring manager at Luma AI
 **Tone:** Confident, specific, engineer-to-engineer. No hedging. Every sentence earns its place.
 **Language rule:** "workload-risk signal", "training-load spike", "caution range", "higher-risk pattern" — never "injury prediction" or "you will get injured."
-**Before recording:** Deploy to Vercel and replace [YOUR_VERCEL_URL] throughout.
+**Before recording:** Deploy to Vercel and replace https://lumalabs-eng-take-home-e066572123aa-two.vercel.app throughout.
 
 ---
 
@@ -214,7 +214,7 @@ Everything visible was computed from a deterministic training block. The reviewe
 
 Before pressing record:
 
-- [ ] Deploy to Vercel and replace [YOUR_VERCEL_URL] throughout
+- [ ] Deploy to Vercel and replace https://lumalabs-eng-take-home-e066572123aa-two.vercel.app throughout
 - [ ] Run: `curl http://localhost:3000/api/dashboard` to verify current phase (RECOVERY), ACWR (0.44), CTL (59.3), race prediction (1:53:19) — update script if they differ
 - [ ] Confirm the March 8 zone-mismatch run is visible on page 2 of /activities with the red "Too Hard" badge
 - [ ] Confirm coach streaming is working with a live test message before recording

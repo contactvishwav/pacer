@@ -10,11 +10,14 @@ Pacer turns a runner's activity history into a persistent coaching relationship 
 | Dimension | What it does | Status |
 |---|---|---|
 | Periodization-Aware Intelligence | Detects training phase (BASE/BUILD/PEAK/TAPER/RECOVERY) from load patterns and anchors all coaching to the goal race | ✅ Shipped |
-| Conversational Coaching | Streaming AI coach with persistent memory, conversation history, and deterministic fallback | ✅ Shipped |
+| Conversational Coaching | Streaming AI coach with persistent memory, named sessions, conversation history, and deterministic fallback | ✅ Shipped |
 | ACWR Injury-Risk Forecasting | Gabbett ratio spike detection with proactive caution/high-risk warnings | ✅ Shipped |
 | Race Prediction | Riegel formula with TSB fatigue adjustment and confidence intervals | ✅ Shipped |
 | Weekly Coaching Brief | Deterministic Monday brief from computed signals — no AI call required | ✅ Shipped |
 | Workout Type Classification | Rule-based classifier with execution evaluation vs. intended workout | ✅ Shipped |
+| Coach Memory Management | User-visible view, edit, and delete of Claude-extracted coaching memories at /coach/memories | ✅ Shipped |
+| Production Hardening | Per-conversation message limits, three-stage context compression, safety classifier (pre-filter + Claude-as-judge), structured JSON logging, in-memory context cache (30s TTL) | ✅ Shipped |
+| Regression Test Suite | validate:coaching, validate:prompt-constraints, validate:context-drift, validate:safety, validate:regression — automated grounding, safety, and determinism checks | ✅ Shipped |
 
 ---
 
@@ -66,6 +69,8 @@ npx prisma generate
 npx prisma db seed
 ```
 
+> `DIRECT_URL` must point to Supabase's direct connection (port 5432) for migrations. `DATABASE_URL` uses the transaction pooler (port 6543, `?pgbouncer=true`) for runtime queries.
+
 The seed creates one demo athlete — **Alex Chen**, targeting the SF Half Marathon (2026-08-02) with a 1:55:00 goal — and populates a deterministic 12-week training block: 54 activities, weekly summaries, workout classifications, HR zone data, and one seeded coaching memory. The seed is idempotent — safe to run multiple times.
 
 > You may see a deprecation warning about `package.json#prisma.seed`. This is expected — Prisma is pinned to v6, and the warning is a forward-notice from late v6 builds about v7's config format change. It does not affect seed behavior.
@@ -101,11 +106,12 @@ Later Prisma v6 versions may print a deprecation warning about `prisma.config.ts
 Walk through these pages in order to see all six intelligence dimensions:
 
 1. **Dashboard** (`/dashboard`) — all six dimensions at a glance: training phase, ACWR risk signal, race prediction, weekly focus, and suggested coach questions
-2. **Activities** (`/activities`) — paginated list; find the **March 8** entry with the red **Too Hard** badge (page 2) — that is the zone-mismatch run seeded with HR 157 against a Zone 2 ceiling of 145
+2. **Activities** (`/activities`) — paginated list showing 20 per page; the **March 8** zone-mismatch run with the red **Too Hard** badge is on **page 2** (HR 157 against a Zone 2 ceiling of 145)
 3. **Activity Detail** — click March 8 to see the Zone 2 warning callout, coaching intelligence panel, and the Ask Coach CTA that prefills the question in coach chat
 4. **Coach** (`/coach`) — a two-panel interface: the left sidebar lists named chat sessions (create, rename, delete); the right panel is the streaming coach. Ask *"How is my training going?"* and watch the response stream with full training context. Each session maintains its own conversation history. If no API key is configured, a deterministic fallback response streams instead
-5. **Race Goal** (`/race-goal`) — Riegel-based half-marathon projection with the confidence interval bar, TSB adjustment note, and gap-to-goal analysis
-6. **Weekly Brief** (`/weekly-brief`) — the five-section deterministic Monday coaching brief, generated without a Claude call; the Ask Coach button prefills the key signal as a question
+5. **Coach Memory** (`/coach` → Manage memory → `/coach/memories`) — after a coaching conversation, navigate here to see what Claude extracted and remembered. Each memory shows the summary text, creation timestamp, and Edit / Delete buttons. A "Clear all memories" button resets everything
+6. **Race Goal** (`/race-goal`) — Riegel-based half-marathon projection with the confidence interval bar, TSB adjustment note, and gap-to-goal analysis
+7. **Weekly Brief** (`/weekly-brief`) — the five-section deterministic Monday coaching brief, generated without a Claude call; the Ask Coach button prefills the key signal as a question
 
 ---
 
@@ -123,7 +129,9 @@ Walk through these pages in order to see all six intelligence dimensions:
 
 ## Validation Suite
 
-Run these after seeding (`npx prisma db seed`). All 9 scripts must pass.
+Run these after seeding (`npx prisma db seed`).
+
+**Deterministic — no Claude calls required:**
 
 ```bash
 npm run validate:seed
@@ -135,9 +143,21 @@ npm run validate:race-prediction
 npm run validate:weekly-brief
 npm run validate:context
 npm run validate:tcx
+npm run validate:context-drift
 ```
 
-> `validate:tcx` requires TCX files to be present. Run `npm run export:tcx` first if `generated-training-data/tcx/` is empty.
+> `validate:tcx` requires TCX files. Run `npm run export:tcx` first if `generated-training-data/tcx/` is empty.
+
+**Require `ANTHROPIC_API_KEY` and a running database:**
+
+```bash
+npm run validate:safety           # Health-advice boundary classifier unit test
+npm run validate:coaching         # Grounding check: Claude references actual computed signals
+npm run validate:prompt-constraints  # Adversarial inputs do not produce prohibited health claims
+npm run validate:regression       # Runs coaching, prompt-constraints, and context-drift in sequence
+```
+
+Run `validate:regression` before any change to `system-prompt.ts`, `buildCoachContext()`, or `ANTHROPIC_MODEL`.
 
 ---
 
@@ -147,13 +167,22 @@ See [docs/SMOKE_TESTS.md](docs/SMOKE_TESTS.md) for curl commands for every API r
 
 ---
 
+## Live Demo
+
+**https://lumalabs-eng-take-home-e066572123aa-two.vercel.app**
+
+---
+
 ## Deploying to Vercel
 
 1. `vercel --prod`
-2. Set env vars in the Vercel dashboard (same as `.env`): `ANTHROPIC_API_KEY`, `DATABASE_URL`, `DIRECT_URL`
-3. `npx prisma migrate deploy` (against production DB)
-4. `npx prisma db seed` (against production DB)
-5. Update `NEXT_PUBLIC_APP_URL` in Vercel env to your Vercel deployment URL
+2. Set env vars in the Vercel dashboard (same as `.env`): `ANTHROPIC_API_KEY`, `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_APP_URL`, `SESSION_SECRET`
+3. Run migrations and seed **locally** with production `DIRECT_URL` — Vercel's build machines cannot reach Supabase's direct connection:
+   ```bash
+   npx prisma migrate deploy
+   npx prisma db seed
+   ```
+4. The `vercel.json` build command runs `npx prisma generate && next build` — migrate deploy is intentionally excluded from the build step
 
 ---
 
@@ -162,6 +191,7 @@ See [docs/SMOKE_TESTS.md](docs/SMOKE_TESTS.md) for curl commands for every API r
 - All business logic lives in `src/lib/intelligence` — route handlers are thin wrappers that authenticate, extract parameters, call one function, and return the result
 - `buildAthleteIntelligenceContext()` is the single integration point for all six intelligence engines — training load (ATL/CTL/TSB), ACWR, race prediction, periodization phase, weekly brief, and workout classifications computed once per request
 - `buildCoachContext()` assembles a compact <2,000-token context for Claude — pre-computed signals, bounded 8-turn conversation history, and a memory summary for older context; raw GPS streams are never sent to the model
+- In-memory context cache (30s TTL) reduces cold-start latency on warm Vercel function instances; CDN cache headers (`s-maxage=30, stale-while-revalidate=60`) cover the dashboard, weekly-brief, and race-prediction routes
 - Prisma v6 is intentionally pinned (see above)
 - Coach streaming uses `export const runtime = 'nodejs'` and `export const maxDuration = 60` on Vercel
 - Deterministic fallback fires when `ANTHROPIC_API_KEY` is absent (`!apiKey || apiKey.trim() === ''`) or when Claude returns a 401 (`Anthropic.AuthenticationError` detected via `instanceof` in the catch block); both paths prepend `__FALLBACK__\n` so the frontend can mark the message accordingly
