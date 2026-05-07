@@ -70,3 +70,26 @@ Individual tests can also be run standalone:
 - `npm run validate:coaching`            — grounding check: Claude references actual computed signals
 - `npm run validate:prompt-constraints`  — safety check: adversarial inputs do not produce prohibited health claims
 - `npm run validate:safety`              — health-advice boundary classifier unit test
+
+## Regression Test Suite
+
+These tests require ANTHROPIC_API_KEY and a running database.
+
+Run the full regression suite:
+```
+npm run validate:regression
+```
+
+Individual tests:
+```
+npm run validate:context-drift      # No Claude calls, fast
+npm run validate:coaching           # Verifies grounding in computed signals
+npm run validate:prompt-constraints # Adversarial inputs vs safety boundary
+npm run validate:safety             # Safety classifier unit tests
+```
+
+Run regression tests before:
+- Any change to `src/lib/coach/system-prompt.ts`
+- Any change to `buildCoachContext()` or context structure
+- Changing `ANTHROPIC_MODEL` env var
+- Any production deployment

@@ -558,3 +558,23 @@ Three regression test scripts were added after the initial build to close the ga
 Run with: `npm run validate:regression`
 
 These tests should be run before every significant prompt or context structure change.
+
+---
+
+## Post-Build Production Hardening Applied
+
+The following items were implemented after the initial audit:
+
+| Category | What Was Built | Remaining Gap |
+|---|---|---|
+| Cost controls | Per-conversation 50-message limit (HTTP 429), three-stage context compression cascade (history → 4 turns, memory → 200 chars, activities → 5), per-conversation extraction cap of 5 memories, `maybeExtractMemory` pre-filter for short low-signal messages, structured cost logging per turn | Per-user daily quotas, fleet-level rate limiting |
+| Context caching | 30s TTL in-memory cache on `buildAthleteIntelligenceContext`, `s-maxage=30, stale-while-revalidate=60` CDN headers on dashboard/weekly-brief/race-prediction routes | Cross-instance cache (Redis/KV), cache invalidation on mutation |
+| Memory privacy | Memory management API (`GET`/`DELETE /api/coach/memories`, `DELETE`/`PATCH /api/coach/memories/[id]`), `/coach/memories` management page with inline edit and per-item delete, 25-memory per-athlete retention limit with oldest-first eviction via `enforceMemoryRetentionPolicy` | Per-user isolation post-auth, GDPR export |
+| Health boundary | Two-layer safety system: structural pre-filter (`needsSafetyClassification`) + Claude-as-judge classifier (`classifyCoachingResponse`), post-stream disclaimer appended to stored records on failure, `## Health and Medical Boundaries` section in system prompt, `validate:safety` and `validate:prompt-constraints` regression scripts | Streaming interception (pre-delivery classification), CI adversarial tests |
+| Regression testing | `validate:coaching` (grounding check), `validate:prompt-constraints` (adversarial inputs vs. safety boundary), `validate:context-drift` (determinism + 13 value-range assertions, no Claude calls), `validate:regression` (combined runner with summary table) | CI integration, automated triggers on prompt/model changes |
+| Structured logging | JSON-formatted console events at key lifecycle points: `intelligence_context_cache_hit`/`miss`, `safety_classification_failed`/`error`, `safety_disclaimer_appended`, `coach_turn_cost_estimate`, context compression warnings | External log aggregation (Vercel Log Drains), error tracking (Sentry), alerting |
+
+Items from Section A (Must Fix Before Production) still open:
+- IP-based rate limiting on coaching endpoint
+- Multi-user auth and per-user data isolation
+- Strava token encryption at rest

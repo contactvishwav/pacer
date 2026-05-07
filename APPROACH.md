@@ -296,17 +296,119 @@ The cuts above share a common logic: each involves real engineering work that is
 
 ## What Breaks First Under Pressure
 
-**Strava API rate limits on import (100 non-upload/15min).** The architecture supports Strava as an alternative data path, but the rate limit means a full historical import requires pagination across hours. The current seed script is a better demo path; Strava import would need a queue with backoff.
+This section is a production risk map, not a list of missing features. It documents where a finished vertical slice would fail first when serving real athletes at scale, what the current implementation already does to reduce each risk, and what the remaining production gap is. Several items have received meaningful hardening after the initial build — those mitigations are noted — but a production gap remains in each case.
 
-**CTL underestimation for athletes with history longer than 12 weeks.** The 42-day time constant means CTL takes roughly 6 weeks to converge from a cold start. The seeded 12-week block covers this adequately, but an athlete who imports 2+ years of Strava history would see CTL computed accurately, while an athlete who starts fresh has a 4-6 week blind period where CTL underestimates true fitness. The system currently does not communicate this cold-start artifact to the user.
+### 1. Multi-User Authentication and Data Isolation
 
-**Workout classifier accuracy at 85.2%.** The misclassifications are exclusively label errors (LONG_RUN classified as EASY in taper weeks), not execution evaluation errors — the coaching signal that matters (TOO_HARD, WELL_EXECUTED, MATCHED_INTENT) is correct on all 54 activities. The fix would require injecting periodization phase context into the classifier, creating a dependency cycle that was intentionally avoided in this architecture. Late taper long runs (weeks 11–12) misclassify as EASY because the taper distance shrinks below the long-run detection threshold, pulling them into the easy HR + moderate distance zone. This is expected and documented in `docs/FEATURE_AUDIT.md` — it is a consequence of a purely rule-based classifier without periodization context — but it is a real accuracy ceiling.
+**Why it breaks first:** The current implementation uses `findFirst()` with no authentication. Every API call returns the seeded demo athlete. The first real user would see their data mixed with or replaced by the demo athlete's data.
 
-**Claude API costs at conversation scale.** The 8-turn history bound and 2,000-token system prompt keep per-message costs manageable in the demo, but a production coaching product with thousands of daily active users and long conversation histories would need a more aggressive summarization strategy.
+**Current mitigation:** Every entity in the schema is scoped by `athleteId`. The intelligence engines, context builder, and all API routes are parameterized on `athleteId` with no athlete-specific assumptions baked in. The route handlers contain explicit comments marking the auth placeholder.
 
-**Token budget is estimated, not exact.** `estimateContextTokens` uses character count divided by 4 as a proxy for token count. This is a standard approximation but can be off by ±20% for content with unusual character distributions. The 2,500-token ceiling includes enough buffer that this is not currently a problem, but a production system should use the Anthropic token-counting API for accurate measurement.
+**Production fix:** Add Iron Session middleware, replace `findFirst()` with `findUnique({ where: { id: session.athleteId } })` in all route handlers, implement OAuth session management. The intelligence layer requires no changes — this is mechanical auth plumbing on a correctly scoped schema.
 
-**Cold Vercel starts on the dashboard.** `buildAthleteIntelligenceContext` runs 6 intelligence engines and 4+ DB queries synchronously. On a cold Vercel serverless start, this takes 4-8 seconds. A 30-second in-memory cache with TTL would reduce p95 latency to cold-start time only — not yet implemented.
+---
+
+### 2. Claude API Cost and Context Scaling
+
+**Why it breaks first:** Each coaching turn sends approximately 2,000 tokens of pre-computed context to Claude, plus a secondary `maybeExtractMemory` call per turn. At 10,000 DAU at 10 messages per day, combined API cost reaches approximately $50,000 per month with no per-user throttle.
+
+**Current mitigation:** A per-conversation message limit of 50 enforced in the conversations route returns HTTP 429 before the limit is exceeded. A three-stage context compression cascade triggers when token count exceeds 2,500: conversation history is trimmed to the last 4 turns, then the memory summary is capped at 200 characters, then recent activities are trimmed to 5. A per-conversation extraction cap of 5 memories prevents unbounded secondary Claude calls. The `maybeExtractMemory` pre-filter skips the extraction call entirely for short messages (under 60 characters) with no high-signal keywords, reducing secondary API calls by approximately 60–70% at scale. Per-turn cost estimates are logged as structured JSON events (`coach_turn_cost_estimate`) for visibility in Vercel function logs.
+
+**Production fix:** The current mitigations control per-conversation cost but not fleet-level cost. A user with many conversations faces no quota. Production requires per-user daily message quotas enforced in the database, IP-based rate limiting independent of conversation structure, model routing for simple follow-ups, and cost dashboards with anomaly alerting.
+
+---
+
+### 3. Synchronous Intelligence Computation on Cold Serverless Starts
+
+**Why it breaks first:** `buildAthleteIntelligenceContext` runs six intelligence engines and four or more database queries synchronously on every dashboard request. On a cold Vercel serverless start this takes 4–8 seconds. Under concurrent traffic, multiple function instances each maintain their own isolated memory space — a cache hit on instance A does not help instance B.
+
+**Current mitigation:** An in-memory context cache with a 30-second TTL persists `buildAthleteIntelligenceContext` results across warm requests within a single function instance, eliminating recomputation for the common case. CDN cache headers (`s-maxage=30, stale-while-revalidate=60`) are set on the dashboard, weekly brief, and race prediction routes so Vercel's edge cache serves repeat requests without hitting the origin. `AbortController` 15-second timeouts on all frontend fetch calls ensure the error state is always reachable — cold starts cannot trap the UI in an indefinite loading state.
+
+**Production fix:** The in-memory cache helps warm single-instance requests but not the serverless fleet. Production requires a shared external cache (Redis or Vercel KV) so cache hits are consistent across all function instances, background refresh after new activity import to invalidate stale context, and incremental recomputation triggering only the engines whose inputs changed.
+
+---
+
+### 4. Live Ingestion Reliability and Backpressure
+
+**Why it breaks first:** A production service with real users syncing 90-day Strava histories would need to handle import inline in a request — blocking, rate-limited, and with no recovery path if interrupted mid-import.
+
+**Current mitigation:** The seeded review path is fully deterministic and synchronous. The seed script is idempotent via `seedHash`. Ingestion is architecturally separated from intelligence — the same Prisma tables can be populated by a background job without changing any engine.
+
+**Production fix:** Background job infrastructure with queues, retries, exponential backoff, idempotent resume from last-synced activity, dead-letter handling, and visible import status. No architectural changes to the intelligence layer are required.
+
+---
+
+### 5. Real-World Data Quality and Schema Drift
+
+**Why it breaks first:** The generated training dataset is clean and intentionally shaped. Real wearable data has missing heart rate, indoor runs without GPS, incorrect sport labels, corrupt elevation, and inconsistent units across device manufacturers.
+
+**Current mitigation:** Zod schemas validate all intelligence engine outputs and API response shapes. The generated dataset validates that the computation layer works correctly when inputs are well-formed — which is the right first validation target.
+
+**Production fix:** Zod validation at external data boundaries (Strava API responses, TCX upload parsing) before data enters the Prisma tables. Data-quality scores per activity. UI confidence warnings when classifier or race predictor inputs are insufficient. Ingestion normalization for known device quirks.
+
+---
+
+### 6. Rule-Based Classifier Ceiling
+
+**Why it breaks first:** The workout classifier achieves 85.2% accuracy on the 54-activity seeded validation set but uses physiological threshold rules that struggle with real-world workout variety: progression runs, strides, fartlek, and deliberately uneven efforts challenge threshold-based classification.
+
+**Current mitigation:** The 14.8% misclassification rate is exclusively label errors on taper long runs falling below the long-run distance threshold — not execution evaluation errors. Execution evaluation is correct on all 54 activities. The 3-lap minimum on the INTERVAL rule prevents warmup-plus-main sessions from misclassifying.
+
+**Production fix:** A two-pass pipeline — classify raw workout structure first, then apply phase-aware interpretation as a second enrichment step that adjusts labels based on periodization context. This is a deliberate v1 boundary.
+
+---
+
+### 7. Training-Load Cold Start
+
+**Why it breaks first:** CTL and ATL are exponential moving averages with 42-day and 7-day time constants. An athlete starting fresh has a 4–6 week period where CTL underestimates true fitness and ACWR ratios are unstable. The system currently does not communicate this cold-start state to the user.
+
+**Current mitigation:** The 12-week seeded block gives the engines enough history for stable outputs from day one. `validate:injury-risk` confirms `insufficient-data` returns correctly for weeks 1–4 and meaningful ACWR appears from week 5 onward.
+
+**Production fix:** Minimum history requirements with user-facing confidence indicators ("Your fitness score is still building — 3 weeks of data remaining"). Baseline initialization using average-athlete priors for short histories. Explicit cold-start state surfaced in the UI rather than showing low CTL without context.
+
+---
+
+### 8. Coach Memory Privacy and Retention
+
+**Why it breaks first:** `CoachMemory` records store durable coaching context — training preferences, schedule constraints, injury history — across all sessions. In the demo, all reviewer sessions share the same athlete's memory pool. Without per-user isolation, one reviewer's memories appear in another reviewer's coaching context.
+
+**Current mitigation:** Memory management API endpoints (`GET /api/coach/memories`, `DELETE /api/coach/memories`, `DELETE /api/coach/memories/[id]`, `PATCH /api/coach/memories/[id]`) and a `/coach/memories` management page allow athletes to view, edit, and delete individual memories or clear all memories at once. A 25-memory per-athlete retention limit with oldest-first eviction is enforced via `enforceMemoryRetentionPolicy` called fire-and-forget after each extraction.
+
+**Production fix:** The management features help individual users control their memories but do not solve the underlying multi-tenancy gap. Production requires per-user memory isolation enforced after multi-user auth is implemented, privacy disclosure in the settings UI, GDPR data export including memory records, and application-layer encryption for sensitive athlete context.
+
+---
+
+### 9. Injury-Risk Language and Health-Advice Boundary
+
+**Why it breaks first:** ACWR is a workload-risk signal, not a medical assessment. Under adversarial input, Claude can produce clinical-sounding language — injury probabilities, diagnoses, treatment recommendations — despite system prompt constraints. The streaming architecture means flagged content reaches the client before any post-hoc filter can act.
+
+**Current mitigation:** A two-layer safety system runs after each Claude stream completes. Layer 1 is a synchronous pre-filter (`needsSafetyClassification`) that checks the response against broad health-adjacent term substrings and structural medical-language regex patterns (condition suffixes like `-itis`/`-osis`, dosage amounts, diagnosis-like sentence structure, percentage-based risk claims, medical urgency phrases) — catching the full semantic space of health-adjacent language without depending on specific drug or condition names. Layer 2 is a secondary Claude call (`classifyCoachingResponse`, max 50 tokens) that only fires when Layer 1 triggers. If classification fails, a safety disclaimer is appended to both the live stream and the stored database record. The system prompt includes an explicit `## Health and Medical Boundaries` section with enumerated prohibitions and a required professional-referral pattern for pain or injury disclosures. `validate:safety` and `validate:prompt-constraints` regression scripts assert correct classifier and constraint behavior.
+
+**Production fix:** The classifier currently runs post-stream — it detects problems after content has already reached the client. Production requires streaming interception: buffer and evaluate content before forwarding to the client, or use a two-stage generation approach (generate candidate, classify, deliver if safe, regenerate if not). Additionally: adversarial prompt injection tests in CI and legal review of all coaching copy before broad launch.
+
+---
+
+### 10. Prompt and Model Regression
+
+**Why it breaks first:** The six deterministic engines are fully testable and validated by nine scripts. Claude outputs are not. A system prompt change, context structure change, or model version upgrade can silently shift coaching tone, factual grounding, or safety constraint adherence. Without automated enforcement, regression tests only catch problems when someone remembers to run them.
+
+**Current mitigation:** Three regression scripts were added after the initial build: `validate:context-drift` runs `buildAthleteIntelligenceContext` twice with cache invalidation and asserts deep JSON equality plus 13 value-range assertions across all six engines — no Claude calls required; `validate:coaching` calls Claude with the full system prompt and asserts that ≥ 4 of 5 expected grounding values (CTL, ACWR, phase, days until race, goal time) appear in the response; `validate:prompt-constraints` fires five adversarial inputs through the full coaching pipeline and asserts each response passes the safety classifier and contains a professional referral. `validate:regression` runs all three in sequence and prints a summary table.
+
+**Production fix:** The regression tests exist but run manually. Production requires CI integration so tests run automatically on every change to `system-prompt.ts` or context structure, automated triggers on `ANTHROPIC_MODEL` env var changes before deployment, pinned model version with a tested upgrade process, and coaching tone regression benchmarks to catch subtle quality drift.
+
+---
+
+### 11. Observability and Incident Response
+
+**Why it breaks first:** Without structured logging aggregation, error tracking, or alerting, a Claude API outage causing 100% fallback responses across all users is invisible until users complain. The fallback works correctly — users see computed coaching — but the engineering team has no signal that something is wrong.
+
+**Current mitigation:** Structured JSON-formatted console events are emitted at key lifecycle points via `console.log(JSON.stringify({...}))` and `console.warn(JSON.stringify({...}))`: cache hit and cache miss events in the context builder (`intelligence_context_cache_hit`, `intelligence_context_cache_miss`), safety classification failures and errors in the classifier (`safety_classification_failed`, `safety_classification_error`), safety disclaimer append events (`safety_disclaimer_appended`), and per-turn cost estimates in both coaching routes (`coach_turn_cost_estimate`). Context token budget violations emit `console.warn` when the compression cascade fires. The deterministic fallback prevents user-facing failures on Claude API unavailability — athletes see computed coaching rather than an error state when Claude is down.
+
+**Production fix:** External log aggregation via Vercel Log Drains, Sentry for error tracking and stack trace capture, alerting on elevated fallback rate (greater than 10% of coaching turns triggering deterministic fallback), and model cost dashboards with anomaly detection on per-user spend.
+
+---
+
+The pressure points above cluster into two categories. Product-layer gaps — authentication, memory isolation, health-advice boundary enforcement in the streaming path — require feature work but not architectural rework, because the schema is correctly scoped and the intelligence layer is already separated from transport. Operational-layer gaps — shared external cache, CI-enforced regression tests, observability pipelines, background job infrastructure — are standard production infrastructure independent of whether the coaching intelligence approach is correct. The hardening applied during this build (safety classifier, memory management, cost controls, regression test suite, context caching, structured logging) demonstrates the pattern: the architecture absorbs production hardening incrementally without structural rework.
 
 ---
 
