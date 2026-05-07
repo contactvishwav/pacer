@@ -1,4 +1,4 @@
-# Video Script — Pacer Demo (6–7 min)
+# Video Script — Pacer Demo (7–7.5 min)
 
 **Format:** Loom screen recording
 **Audience:** Director of Engineering and hiring manager at Luma AI
@@ -76,6 +76,8 @@ Classification card: Intended easy. Classified Steady State. Heart rate 157 agai
 
 The Zone 2 ceiling is not derived from a rolling average. It is a fixed physiological threshold — the heart rate below which the athlete can sustain aerobic effort without accumulating meaningful fatigue. Exceeding it on a scheduled recovery day costs the next day's quality session.
 
+This classifier took more iterations than anything else in the project. The first version fired the interval rule on two-lap tempo sessions — warmup plus main effort — because the lap HR variance looked like intervals. Adding the 3-lap minimum required understanding what interval structure actually is: repeated short efforts with recovery, not a single hard effort split in two. Getting that distinction right in a rule-based system is the kind of thing that separates coaching intelligence from statistical pattern matching.
+
 Coaching Context card: This is where that violation connects to the training arc. The phase context, the TSB at the time, the ACWR — all computed, all part of the coaching explanation.
 
 *Click "Ask Coach about this workout."*
@@ -114,6 +116,8 @@ Athlete Intelligence fires on activity upload. Between workouts — on rest days
 
 That sentence came from generateWeeklyBrief — a deterministic function. No Claude call. Five sections: last week's training reviewed, this week prescribed, the most important signal, active warnings, and suggested focus. All derived from CTL trend, ACWR category, phase classification, and race gap. The prescription is phase-appropriate — recovery week means easy runs only, with a specific HR ceiling.
 
+I built this without Claude first deliberately. If I cannot generate a coaching prescription from CTL, ACWR, phase, and race gap without a language model, I do not understand the signals well enough to send them to one. The brief forced me to encode actual coaching logic — what a recovery week prescribes, what signals warrant a warning, what the right key signal priority order is. When I finally wired Claude into the context, the responses were specific because that encoding already existed.
+
 *Make the architectural point clearly:*
 
 This is why I call Pacer a computed coaching layer. The brief works without Claude. Claude can elaborate on it, rewrite it, answer questions about it — but the coaching value exists in the computation layer. That means the product degrades gracefully when the AI API is unavailable. It means the brief is testable against a known schema. It means the coaching is not hallucinated — it is derived.
@@ -122,7 +126,7 @@ The deterministic brief also proves something about the design philosophy: if yo
 
 ---
 
-## [4:45–5:40] — Coach Chat: Claude as Interface Over Computed State (55 seconds)
+## [4:45–6:00] — Coach Chat: Claude as Interface Over Computed State (1:15)
 
 **Screen:** /coach — show the sidebar of named sessions briefly, then start a new message.
 
@@ -150,9 +154,15 @@ This is the conversational dimension Athlete Intelligence does not have. You can
 
 If the Anthropic API is unavailable, a deterministic fallback streams computed coaching analysis from the same intelligence context — no hallucination possible, no dependency on Claude being available. The coaching works either way.
 
+**Screen:** Click "Manage memory" in the coach header — this navigates to /coach/memories in the same browser tab.
+
+"This is what the coach actually remembers. These summaries were written by Claude — not keyword-matched, not manually entered. A secondary call after each streaming turn decides whether the conversation contained something durable: a training preference, a schedule constraint, injury history. If it did, Claude writes a structured summary and it lands here. The athlete can edit any entry, delete individual ones, or clear everything. If the coach is going to carry context across sessions, the athlete should be able to see exactly what it knows and correct it. That is not a settings page — it is part of the coaching interface."
+
+*Navigate back to /coach*
+
 ---
 
-## [5:40–6:35] — Architecture Decisions and AI Direction (55 seconds)
+## [6:00–6:55] — Architecture Decisions and AI Direction (55 seconds)
 
 **Screen:** src/lib/intelligence/ folder → buildAthleteIntelligenceContext → src/app/api/dashboard/route.ts
 
@@ -170,6 +180,8 @@ Now explain the decisions I made that AI could not.
 
 **ACWR formula choice.** I chose the Gabbett ratio over ATL/CTL. They answer different questions. ATL/CTL tracks chronic fitness trend and stays elevated throughout any build block. Gabbett compares this week to the prior four-week baseline at the same weekly timescale — it detects spikes. Week 8's 1.337 was identifiable precisely because weeks 1–7 established a stable baseline.
 
+That formula choice is the decision I'm most confident about in the entire codebase. ATL/CTL would have produced a persistently elevated ratio throughout the build phase — making it impossible to detect week 8 as anomalous because every week looks elevated. Gabbett isolated the spike precisely because the chronic denominator is stable. Getting the right tool for the right question is the difference between a signal and noise.
+
 **Deterministic training block.** I built a 12-week dataset instead of requiring Strava OAuth because the intelligence dimensions need specific data shapes to demonstrate — a load spike, a zone-mismatch run, a full periodization arc, a race trajectory gap. Real data might not have those. The deterministic training block guarantees them. It is a controlled evaluation environment, not a shortcut.
 
 **Deterministic engines before Claude.** I rejected "send everything to Claude." I built computed signals first because the coaching should be correct when Claude is unavailable, testable against known inputs, and specific to this athlete's actual computed state.
@@ -178,7 +190,7 @@ Other explicit decisions: TCX over FIT because FIT is binary and risky to genera
 
 ---
 
-## [6:35–7:00] — Close (25 seconds)
+## [6:55–7:20] — Close (25 seconds)
 
 **Screen:** Back to /dashboard.
 
@@ -226,11 +238,11 @@ Before pressing record:
 | Activity intelligence | 0:50 | 3:10 |
 | Race prediction | 0:45 | 3:55 |
 | Weekly brief | 0:50 | 4:45 |
-| Coach chat live | 0:55 | 5:40 |
-| Architecture and AI direction | 0:55 | 6:35 |
-| Close | 0:25 | 7:00 |
+| Coach chat live + memories | 1:15 | 6:00 |
+| Architecture and AI direction | 0:55 | 6:55 |
+| Close | 0:25 | 7:20 |
 
-**Total: 7:00** — within acceptable range for Luma's "~5 minute" guideline given the depth of content. Keep delivery crisp.
+**Total: 7:20** — under the 7:30 ceiling. The 20-second addition is the /coach/memories navigation in the coach chat section. The first-person voice insertions (classifier story, brief without Claude, Gabbett confidence) are spoken during existing screen time — navigation, reading, and pause moments — and do not add material runtime. Keep delivery crisp.
 
 ---
 
@@ -240,7 +252,7 @@ Before pressing record:
 |---|---|---|
 | Phase | RECOVERY | Dashboard [1:30], Close [6:35] |
 | ACWR this week | 0.44 | Dashboard [1:30], Weekly Brief [3:55] |
-| CTL | 59.3 | Dashboard [1:30], Weekly Brief [3:55], Coach [4:45] |
+| CTL | 59.3 | Dashboard [1:30], Weekly Brief [3:55], Coach [4:45–6:00] |
 | TSB | +7.2 | Race Prediction [3:10] |
 | Race prediction | 1:53:19 | Dashboard [1:30], Race Prediction [3:10] |
 | Confidence interval | 1:49:14–1:57:24 | Race Prediction [3:10] |
