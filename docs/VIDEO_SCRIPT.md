@@ -110,25 +110,37 @@ The Coaching Context card connects the violation to the training arc. Click Ask 
 
 ---
 
-## [2:45–3:30] — Race Prediction: Honest Trajectory Modeling (45 seconds)
+## [2:45–3:20] — Race Prediction: Honest Trajectory Modeling (35 seconds)
 
 **Screen:** /race-goal
 
-Race prediction is not presented as a certainty. It is a trajectory estimate with a confidence interval, grounded in a published formula.
+Race prediction is not a certainty. It is a trajectory estimate with a confidence interval, grounded in a published formula.
 
-Riegel 1977: T2 equals T1 times the distance ratio raised to the 1.06 power. The 1.06 exponent captures the non-linear fatigue relationship over longer distances — you slow down more than proportionally as distance increases. The formula is in the code with a comment. No black box, no ML model.
+Riegel 1977: T2 equals T1 times the distance ratio raised to the 1.06 power. It is in the code with a comment. No black box, no ML model. The system selects the best qualifying effort from the last 8 weeks, applies Riegel, then adjusts for TSB freshness. All adjustments are surfaced in the UI.
 
-The system identifies the best qualifying effort — lowest average pace from TEMPO, LONG_RUN, or RACE activities over 5km in the last 8 weeks. Then applies Riegel. Then adjusts for current TSB freshness — TSB is +7.2, so the prediction improves 2%. All adjustments are surfaced explicitly in the UI.
-
-1:53:19 predicted. 1:49:14 to 1:57:24 confidence interval. 80 out of 100 confidence score. 1:41 ahead of the 1:55:00 goal.
+We see 1:53:19 predicted within this range with a confidence interval of 80 out of 100 confidence. 1:41 ahead of the 1:55:00 goal.
 
 *Point at the disclaimer.*
 
-"Estimated based on flat-course Riegel formula. Hilly terrain or adverse weather may significantly affect results." The product should not overclaim. Honest uncertainty is a feature, not a weakness.
+"Flat-course estimate. Hilly terrain or adverse weather may significantly affect results." Honest uncertainty is a feature, not a weakness.
 
 ---
 
-## [3:30–4:20] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
+**Backup version (20–25 seconds) — use if the video runs long:**
+
+Riegel formula — published 1977, in the code with a comment. Best qualifying tempo effort from the last 8 weeks, scaled to 21.1km, adjusted for TSB freshness.
+
+1:53:19 predicted. 1:41 ahead of goal. 80 out of 100 confidence. Interval: 1:49 to 1:57.
+
+*Point at the disclaimer.*
+
+The product should not overclaim. Honest uncertainty is a feature.
+
+*Note: The four numbers — 1:53:19, confidence interval, confidence score, gap to goal — must appear in any version. The Riegel formula name and "no black box" line should survive in any version because they directly answer the engineering credibility question. Cut the exponent explanation and qualifying-effort logic first.*
+
+---
+
+## [3:20–4:10] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
 
 **Screen:** /weekly-brief
 
@@ -150,7 +162,7 @@ The deterministic brief also proves something about the design philosophy: if yo
 
 ---
 
-## [4:20–5:35] — Coach Chat: Claude as Interface Over Computed State (1:15)
+## [4:10–5:25] — Coach Chat: Claude as Interface Over Computed State (1:15)
 
 **Screen:** /coach — show the sidebar of named sessions briefly, then start a new message.
 
@@ -186,7 +198,7 @@ If the Anthropic API is unavailable, a deterministic fallback streams computed c
 
 ---
 
-## [5:35–6:30] — Architecture Decisions and AI Direction (55 seconds)
+## [5:25–6:20] — Architecture Decisions and AI Direction (55 seconds)
 
 **Screen:** src/lib/intelligence/ folder → buildAthleteIntelligenceContext → src/app/api/dashboard/route.ts
 
@@ -214,7 +226,7 @@ Other explicit decisions: TCX over FIT because FIT is binary and risky to genera
 
 ---
 
-## [6:30–6:55] — Close (25 seconds)
+## [6:20–6:45] — Close (25 seconds)
 
 **Screen:** Back to /dashboard.
 
@@ -260,13 +272,13 @@ Before pressing record:
 | Why technically different | 0:40 | 1:25 |
 | Dashboard walkthrough | 0:40 | 2:05 |
 | Activity intelligence | 0:40 | 2:45 |
-| Race prediction | 0:45 | 3:30 |
-| Weekly brief | 0:50 | 4:20 |
-| Coach chat live + memories | 1:15 | 5:35 |
-| Architecture and AI direction | 0:55 | 6:30 |
-| Close | 0:25 | 6:55 |
+| Race prediction | 0:35 | 3:20 |
+| Weekly brief | 0:50 | 4:10 |
+| Coach chat live + memories | 1:15 | 5:25 |
+| Architecture and AI direction | 0:55 | 6:20 |
+| Close | 0:25 | 6:45 |
 
-**Total: 6:55** — well under the 7:30 ceiling. Dashboard tightened from 50s to 40s; activity intelligence tightened from 50s to 40s. Keep delivery crisp.
+**Total: 6:45** — well under the 7:30 ceiling. Dashboard tightened from 50s to 40s; activity intelligence tightened from 50s to 40s; race prediction tightened from 45s to 35s. Keep delivery crisp.
 
 ---
 
