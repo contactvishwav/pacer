@@ -381,10 +381,10 @@ export default function RaceGoalPage() {
               </p>
             )}
 
-            <p className="text-[11px] text-muted-foreground/80 italic">
+            <p className="text-xs italic text-foreground">
               Estimated based on current training data. Not a guarantee.
             </p>
-            <p className="text-[11px] text-muted-foreground/80 italic">
+            <p className="text-xs italic text-foreground">
               Estimate assumes flat course conditions. Hilly terrain or adverse weather may significantly affect results.
             </p>
           </CardContent>
