@@ -171,6 +171,8 @@ See [docs/SMOKE_TESTS.md](docs/SMOKE_TESTS.md) for curl commands for every API r
 
 **https://lumalabs-eng-take-home-e066572123aa-two.vercel.app**
 
+[Video walkthrough (~6:30 min)](https://drive.google.com/file/d/1Q-Bk7IwBB1Vo3DempmsZOlNkFa-ojzOe/view?usp=sharing)
+
 ---
 
 ## Deploying to Vercel

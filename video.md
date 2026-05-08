@@ -1,3 +1,3 @@
 # Video Walkthrough
 
-[Loom link to be added after recording — see docs/VIDEO_SCRIPT.md]
+[Watch the demo (Google Drive, ~6:30 min)](https://drive.google.com/file/d/1Q-Bk7IwBB1Vo3DempmsZOlNkFa-ojzOe/view?usp=sharing)
