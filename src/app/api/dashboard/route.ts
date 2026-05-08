@@ -62,6 +62,7 @@ export async function GET() {
         explanation:         ctx.injuryRisk.explanation,
         recommendedAction:   ctx.injuryRisk.recommendedAction,
         contributingFactors: ctx.injuryRisk.contributingFactors,
+        acwrHistory:         ctx.injuryRisk.acwrHistory,
       },
       trainingLoad: {
         ctl:         ctx.trainingLoad.ctl,

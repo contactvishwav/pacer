@@ -38,6 +38,7 @@ interface DashboardData {
     explanation: string
     recommendedAction: string
     contributingFactors: string[]
+    acwrHistory: number[]
   }
   trainingLoad: {
     ctl: number
@@ -397,9 +398,10 @@ function ACWRZoneBar({ acwr }: { acwr: number | null }) {
 
 interface InjuryRiskCardProps {
   injuryRisk: DashboardData['injuryRisk']
+  peakAcwr?: number
 }
 
-function InjuryRiskCard({ injuryRisk }: InjuryRiskCardProps) {
+function InjuryRiskCard({ injuryRisk, peakAcwr }: InjuryRiskCardProps) {
   const rs = riskStyles(injuryRisk.category)
   const acwrDisplay = injuryRisk.acwr != null ? injuryRisk.acwr.toFixed(2) : '—'
 
@@ -423,6 +425,17 @@ function InjuryRiskCard({ injuryRisk }: InjuryRiskCardProps) {
           <p className={cn('mt-1 text-[10px] font-bold uppercase tracking-widest', rs.acwr)}>
             {riskZoneLabel(injuryRisk.category)}
           </p>
+          {peakAcwr != null && peakAcwr > 1.3 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Peak (last 12 wks):
+              <span className="ml-1 font-medium text-amber-400">
+                {peakAcwr.toFixed(3)}
+              </span>
+              <span className="ml-1 text-muted-foreground">
+                (caution range)
+              </span>
+            </p>
+          )}
         </div>
 
         {/* Risk zone context bar */}
@@ -887,6 +900,7 @@ export default function DashboardPage() {
   const bannerColor = data.injuryRisk.category === 'high-risk'
     ? 'border-red-500/30 bg-red-500/8 text-red-300'
     : 'border-amber-500/30 bg-amber-500/8 text-amber-200'
+  const peakAcwr = Math.max(...data.injuryRisk.acwrHistory.filter(v => v > 0))
 
   return (
     <div className="animate-in fade-in space-y-6 duration-500">
@@ -942,7 +956,7 @@ export default function DashboardPage() {
           goalRace={data.goalRace}
           trainingLoad={data.trainingLoad}
         />
-        <InjuryRiskCard injuryRisk={data.injuryRisk} />
+        <InjuryRiskCard injuryRisk={data.injuryRisk} peakAcwr={peakAcwr} />
         <RacePredictionCard
           racePrediction={data.racePrediction}
           goalRace={data.goalRace}

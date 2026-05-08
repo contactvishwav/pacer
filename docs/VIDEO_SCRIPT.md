@@ -1,4 +1,4 @@
-# Video Script — Pacer Demo (~7 min)
+# Video Script — Pacer Demo (~6:30 min)
 
 **Format:** Loom screen recording
 **Audience:** Director of Engineering and hiring manager at Luma AI
@@ -8,23 +8,19 @@
 
 ---
 
-## [0:00–0:45] — The Problem and Product Thesis (45 seconds)
+## [0:00–0:30] — The Problem and Product Thesis (30 seconds)
 
 **Screen:** Dashboard visible but do not navigate. Stand still.
 
-Strava Athlete Intelligence launched in October 2024 to 135 million athletes. Their own community characterized it — direct quote — as "prose layered on top of your data points." After a completed run, the feature generates a paragraph about that run. Their own materials frame it as post-activity commentary. It describes what happened. It does not help decide what to do next.
+Strava Athlete Intelligence explains the workout you just completed. It describes what happened. It does not help decide what to do next.
 
-The product gap is not better text. The gap is coaching strategy. A coach synthesizes a training block — weeks of accumulated history — into a recommendation about trajectory, risk, and decisions. A describer consumes one activity. A coach consumes a training arc.
-
-*Pause. Let this land.*
-
-"Strava explains the workout you just completed. Pacer helps decide what you should do next."
+The product gap is not better text. The gap is coaching strategy. A coach synthesizes a training block — weeks of accumulated history — into a recommendation about trajectory, risk, and decisions. That is the difference Pacer is built around.
 
 Pacer computes the athlete's training state first — from 12 weeks of longitudinal history — and surfaces that state as a coaching model. The chat interface is a layer on top of that computation, not the source of intelligence.
 
 ---
 
-## [0:45–1:25] — Why This Is Technically Different (40 seconds)
+## [0:30–1:10] — Why This Is Technically Different (40 seconds)
 
 **Screen:** Stay on dashboard. Move to src/lib/intelligence/ briefly if possible, then back.
 
@@ -48,7 +44,7 @@ The naive implementation sends activity data to Claude and gets generic advice b
 
 ---
 
-## [1:25–2:05] — Dashboard: Current Coaching State (40 seconds)
+## [1:10–1:50] — Dashboard: Current Coaching State (40 seconds)
 
 **Screen:** /dashboard. Scroll slowly. Let each card sit for 3–4 seconds.
 
@@ -72,7 +68,7 @@ Training Phase is RECOVERY — the phase detector read a 47% load drop and class
 
 ---
 
-## [2:05–2:45] — Activity Intelligence: Intent vs Execution (40 seconds)
+## [1:50–2:30] — Activity Intelligence: Intent vs Execution (40 seconds)
 
 **Screen:** /activities → page 2 → click March 8 "8.0km Steady State Run"
 
@@ -110,7 +106,7 @@ The Coaching Context card connects the violation to the training arc. Click Ask 
 
 ---
 
-## [2:45–3:20] — Race Prediction: Honest Trajectory Modeling (35 seconds)
+## [2:30–3:05] — Race Prediction: Honest Trajectory Modeling (35 seconds)
 
 **Screen:** /race-goal
 
@@ -140,7 +136,7 @@ The product should not overclaim. Honest uncertainty is a feature.
 
 ---
 
-## [3:20–4:10] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
+## [3:05–3:55] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
 
 **Screen:** /weekly-brief
 
@@ -162,7 +158,7 @@ The deterministic brief also proves something about the design philosophy: if yo
 
 ---
 
-## [4:10–5:25] — Coach Chat: Claude as Interface Over Computed State (1:15)
+## [3:55–5:10] — Coach Chat: Claude as Interface Over Computed State (1:15)
 
 **Screen:** /coach — show the sidebar of named sessions briefly, then start a new message.
 
@@ -198,7 +194,7 @@ If the Anthropic API is unavailable, a deterministic fallback streams computed c
 
 ---
 
-## [5:25–6:20] — Architecture Decisions and AI Direction (55 seconds)
+## [5:10–6:05] — Architecture Decisions and AI Direction (55 seconds)
 
 **Screen:** src/lib/intelligence/ folder → buildAthleteIntelligenceContext → src/app/api/dashboard/route.ts
 
@@ -226,7 +222,7 @@ Other explicit decisions: TCX over FIT because FIT is binary and risky to genera
 
 ---
 
-## [6:20–6:45] — Close (25 seconds)
+## [6:05–6:30] — Close (25 seconds)
 
 **Screen:** Back to /dashboard.
 
@@ -268,17 +264,17 @@ Before pressing record:
 
 | Section | Duration | Running Total |
 |---|---|---|
-| Product thesis and problem | 0:45 | 0:45 |
-| Why technically different | 0:40 | 1:25 |
-| Dashboard walkthrough | 0:40 | 2:05 |
-| Activity intelligence | 0:40 | 2:45 |
-| Race prediction | 0:35 | 3:20 |
-| Weekly brief | 0:50 | 4:10 |
-| Coach chat live + memories | 1:15 | 5:25 |
-| Architecture and AI direction | 0:55 | 6:20 |
-| Close | 0:25 | 6:45 |
+| Product thesis and problem | 0:30 | 0:30 |
+| Why technically different | 0:40 | 1:10 |
+| Dashboard walkthrough | 0:40 | 1:50 |
+| Activity intelligence | 0:40 | 2:30 |
+| Race prediction | 0:35 | 3:05 |
+| Weekly brief | 0:50 | 3:55 |
+| Coach chat live + memories | 1:15 | 5:10 |
+| Architecture and AI direction | 0:55 | 6:05 |
+| Close | 0:25 | 6:30 |
 
-**Total: 6:45** — well under the 7:30 ceiling. Dashboard tightened from 50s to 40s; activity intelligence tightened from 50s to 40s; race prediction tightened from 45s to 35s. Keep delivery crisp.
+**Total: 6:30** — well under the 7:30 ceiling. Problem thesis tightened from 45s to 30s; dashboard from 50s to 40s; activity intelligence from 50s to 40s; race prediction from 45s to 35s. Keep delivery crisp.
 
 ---
 
@@ -286,18 +282,18 @@ Before pressing record:
 
 | Data point | Value | Where used |
 |---|---|---|
-| Phase | RECOVERY | Dashboard [1:30], Close [6:35] |
-| ACWR this week | 0.44 | Dashboard [1:30], Weekly Brief [3:55] |
-| CTL | 59.3 | Dashboard [1:30], Weekly Brief [3:55], Coach [4:45–6:00] |
-| TSB | +7.2 | Race Prediction [3:10] |
-| Race prediction | 1:53:19 | Dashboard [1:30], Race Prediction [3:10] |
-| Confidence interval | 1:49:14–1:57:24 | Race Prediction [3:10] |
-| Confidence score | 80/100 | Dashboard [1:30], Race Prediction [3:10] |
-| Goal gap | 1:41 ahead | Dashboard [1:30], Race Prediction [3:10] |
-| Days until race | 87 | Dashboard [1:30] |
-| Week 8 ACWR spike | 1.337 | Dashboard [1:30] |
-| March 8 activity | HR 157 vs ceiling 145 | Activity Intelligence [2:10] |
-| Weekly brief key signal | Fitness (CTL 59.3) declining | Weekly Brief [3:55] |
+| Phase | RECOVERY | Dashboard [1:15], Close [6:20] |
+| ACWR this week | 0.44 | Dashboard [1:15], Weekly Brief [3:40] |
+| CTL | 59.3 | Dashboard [1:15], Weekly Brief [3:40], Coach [4:30–5:45] |
+| TSB | +7.2 | Race Prediction [2:55] |
+| Race prediction | 1:53:19 | Dashboard [1:15], Race Prediction [2:55] |
+| Confidence interval | 1:49:14–1:57:24 | Race Prediction [2:55] |
+| Confidence score | 80/100 | Dashboard [1:15], Race Prediction [2:55] |
+| Goal gap | 1:41 ahead | Dashboard [1:15], Race Prediction [2:55] |
+| Days until race | 87 | Dashboard [1:15] |
+| Week 8 ACWR spike | 1.337 | Dashboard [1:15] |
+| March 8 activity | HR 157 vs ceiling 145 | Activity Intelligence [1:55] |
+| Weekly brief key signal | Fitness (CTL 59.3) declining | Weekly Brief [3:40] |
 
 ---
 
