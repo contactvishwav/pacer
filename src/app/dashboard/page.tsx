@@ -249,8 +249,8 @@ function PhaseCard({ phase, goalRace, trainingLoad }: PhaseCardProps) {
                   />
                   <span
                     className={cn(
-                      'text-[8px] font-semibold uppercase tracking-wider',
-                      active ? 'text-foreground' : 'text-muted-foreground/40',
+                      'text-xs font-semibold uppercase tracking-wider',
+                      active ? 'text-zinc-100' : 'text-zinc-300',
                     )}
                   >
                     {p}
