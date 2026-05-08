@@ -1,4 +1,4 @@
-# Video Script — Pacer Demo (7–7.25 min)
+# Video Script — Pacer Demo (~7 min)
 
 **Format:** Loom screen recording
 **Audience:** Director of Engineering and hiring manager at Luma AI
@@ -48,51 +48,69 @@ The naive implementation sends activity data to Claude and gets generic advice b
 
 ---
 
-## [1:25–2:15] — Dashboard: Current Coaching State (50 seconds)
+## [1:25–2:05] — Dashboard: Current Coaching State (40 seconds)
 
 **Screen:** /dashboard. Scroll slowly. Let each card sit for 3–4 seconds.
 
 Each card answers a coaching question.
 
-Training Phase card: "Where am I in training?" — RECOVERY. The arc at the bottom shows the full 12-week periodization: BASE weeks 1–3, BUILD weeks 4–7, PEAK week 8, then RECOVERY. That label is not hardcoded. The phase detector read a 47% load drop against the 3-week average and classified it as recovery. In week 8, when the athlete deliberately spiked load, the ACWR hit 1.337 — into the caution range — and the system overrode the calendar classification. The workload signal was more important than the schedule position.
+Training Phase: "Where am I in training?" — RECOVERY. The arc shows the full periodization: BASE, BUILD, PEAK, then RECOVERY. Not hardcoded — the phase detector read a 47% load drop against the 3-week average. In week 8, when load spiked, ACWR hit 1.337 and the system overrode the calendar. The workload signal outranked the schedule.
 
-ACWR card: "Am I at risk?" — ACWR is 0.44 this week. Underload — confirming the recovery prescription, not just describing it. At week 8 peak it hit 1.337, triggering the training-load risk signal. Not a rolling average. Not a heuristic. The Gabbett formula: this week's TRIMP divided by the arithmetic mean of the prior four complete weeks.
+ACWR: "Am I at risk?" — 0.44 this week. Underload, which confirms the recovery prescription. At week 8 peak it hit 1.337 — triggering the training-load risk signal.
 
-Race Prediction card: "Am I on track?" — 1:53:19 projected, 1:41 ahead of the 1:55:00 goal, 87 days out. Riegel formula applied to the best qualifying tempo effort, adjusted for current TSB freshness. 80 out of 100 confidence.
+Race Prediction: "Am I on track?" — 1:53:19, 1:41 ahead of goal, 80 out of 100 confidence.
 
-Weekly Brief preview: "What should I do this week?" — phase-appropriate prescription. Recovery week means easy runs only, HR below Zone 2 ceiling.
-
-Coach CTA: "What should I ask my coach?" — the suggested questions are wired to the computed intelligence context, not generic prompts.
+Weekly Brief and Coach CTA: "What do I do this week, and what do I ask next?" — both wired to the same computed context. Nothing is a generic prompt.
 
 ---
 
-## [2:15–3:05] — Activity Intelligence: Intent vs Execution (50 seconds)
+**Backup version (25–30 seconds) — use if the video runs long:**
+
+Training Phase is RECOVERY — the phase detector read a 47% load drop and classified it. In week 8, a load spike pushed ACWR to 1.337 and overrode the calendar. ACWR this week is 0.44 — underload, confirming recovery. Race prediction: 1:53:19, 1:41 ahead of goal. Weekly brief and coach questions are both derived from this same computed state. Five cards, one source of truth.
+
+*Note: The backup version collapses ACWR explanation and drops the confidence score. Use it only if the recording is running long. The Training Phase override story — workload signal outranking the schedule — should survive in any version because it is the strongest engineering signal on the dashboard.*
+
+---
+
+## [2:05–2:45] — Activity Intelligence: Intent vs Execution (40 seconds)
 
 **Screen:** /activities → page 2 → click March 8 "8.0km Steady State Run"
 
-Before clicking, set up what they are about to see.
-
-Strava can summarize pace and effort relative to averages. What it cannot do is ask whether this specific workout was executed according to its intent. That distinction matters because a scheduled easy run executed at threshold effort is not "above average." It is a training decision problem.
+Strava can compare pace to your 30-day average. What it cannot do is ask whether this workout was executed according to its intent. That distinction matters — a scheduled easy run executed at threshold effort is not "above average." It is a training decision problem.
 
 *Click the activity.*
 
-Classification card: Intended easy. Classified Steady State. Heart rate 157 against a Zone 2 ceiling of 145 — twelve beats over.
+Intended easy. Classified Steady State. Heart rate 157 against a Zone 2 ceiling of 145 — twelve beats over.
 
 *Pause. Let it be visible.*
 
-The Zone 2 ceiling is not derived from a rolling average. It is a fixed physiological threshold — the heart rate below which the athlete can sustain aerobic effort without accumulating meaningful fatigue. Exceeding it on a scheduled recovery day costs the next day's quality session.
+Zone 2 ceiling is a fixed physiological threshold, not a rolling average. The classifier required more iteration than anything else in the project — the first version mislabeled two-lap tempo sessions as intervals because the lap HR variance looked right. Getting that distinction correct in a rule-based system is what separates coaching intelligence from pattern matching.
 
-This classifier took more iterations than anything else in the project. The first version fired the interval rule on two-lap tempo sessions — warmup plus main effort — because the lap HR variance looked like intervals. Adding the 3-lap minimum required understanding what interval structure actually is: repeated short efforts with recovery, not a single hard effort split in two. Getting that distinction right in a rule-based system is the kind of thing that separates coaching intelligence from statistical pattern matching.
-
-Coaching Context card: This is where that violation connects to the training arc. The phase context, the TSB at the time, the ACWR — all computed, all part of the coaching explanation.
+The Coaching Context card connects that violation to the training arc — phase, TSB, ACWR at the time of the run.
 
 *Click "Ask Coach about this workout."*
 
-The coach opens with the question pre-filled. SessionStorage bridge — one line of code — carries the coaching context from every intelligence page directly into the first coach message. The question is specific because the computation was specific.
+The question arrives pre-filled. SessionStorage bridge — one line — carries the coaching context from every intelligence page into the first coach message. The question is specific because the computation was specific.
 
 ---
 
-## [3:05–3:50] — Race Prediction: Honest Trajectory Modeling (45 seconds)
+**Backup version (25–30 seconds) — use if the video runs long:**
+
+Strava compares pace to averages. Pacer asks whether this run matched its intent.
+
+*Click the activity.*
+
+Intended easy. Classified Steady State. Heart rate 157 against a Zone 2 ceiling of 145 — twelve beats over. Not a rolling average — a fixed physiological threshold.
+
+*Pause.*
+
+The Coaching Context card connects the violation to the training arc. Click Ask Coach — the question arrives pre-filled via sessionStorage. Specific computation produces a specific question.
+
+*Note: The classifier iteration story — two-lap tempo mislabeled as intervals, 3-lap minimum fix — should survive in the primary version because it is the most concrete example of human judgment over AI-generated code in the entire video. Cut it only in the backup version when time is tight.*
+
+---
+
+## [2:45–3:30] — Race Prediction: Honest Trajectory Modeling (45 seconds)
 
 **Screen:** /race-goal
 
@@ -110,7 +128,7 @@ The system identifies the best qualifying effort — lowest average pace from TE
 
 ---
 
-## [3:50–4:40] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
+## [3:30–4:20] — Weekly Brief: Proactive Coaching Without Claude (50 seconds)
 
 **Screen:** /weekly-brief
 
@@ -132,7 +150,7 @@ The deterministic brief also proves something about the design philosophy: if yo
 
 ---
 
-## [4:40–5:55] — Coach Chat: Claude as Interface Over Computed State (1:15)
+## [4:20–5:35] — Coach Chat: Claude as Interface Over Computed State (1:15)
 
 **Screen:** /coach — show the sidebar of named sessions briefly, then start a new message.
 
@@ -168,7 +186,7 @@ If the Anthropic API is unavailable, a deterministic fallback streams computed c
 
 ---
 
-## [5:55–6:50] — Architecture Decisions and AI Direction (55 seconds)
+## [5:35–6:30] — Architecture Decisions and AI Direction (55 seconds)
 
 **Screen:** src/lib/intelligence/ folder → buildAthleteIntelligenceContext → src/app/api/dashboard/route.ts
 
@@ -196,7 +214,7 @@ Other explicit decisions: TCX over FIT because FIT is binary and risky to genera
 
 ---
 
-## [6:50–7:15] — Close (25 seconds)
+## [6:30–6:55] — Close (25 seconds)
 
 **Screen:** Back to /dashboard.
 
@@ -240,15 +258,15 @@ Before pressing record:
 |---|---|---|
 | Product thesis and problem | 0:45 | 0:45 |
 | Why technically different | 0:40 | 1:25 |
-| Dashboard walkthrough | 0:50 | 2:15 |
-| Activity intelligence | 0:50 | 3:05 |
-| Race prediction | 0:45 | 3:50 |
-| Weekly brief | 0:50 | 4:40 |
-| Coach chat live + memories | 1:15 | 5:55 |
-| Architecture and AI direction | 0:55 | 6:50 |
-| Close | 0:25 | 7:15 |
+| Dashboard walkthrough | 0:40 | 2:05 |
+| Activity intelligence | 0:40 | 2:45 |
+| Race prediction | 0:45 | 3:30 |
+| Weekly brief | 0:50 | 4:20 |
+| Coach chat live + memories | 1:15 | 5:35 |
+| Architecture and AI direction | 0:55 | 6:30 |
+| Close | 0:25 | 6:55 |
 
-**Total: 7:15** — under the 7:30 ceiling. The "Why technically different" section was tightened from 45s to 40s by collapsing the six-engine list into a single inline sentence. The /coach/memories navigation adds 20s to coach chat. The first-person voice insertions (classifier story, brief without Claude, Gabbett confidence) are spoken during existing screen time and do not add material runtime. Keep delivery crisp.
+**Total: 6:55** — well under the 7:30 ceiling. Dashboard tightened from 50s to 40s; activity intelligence tightened from 50s to 40s. Keep delivery crisp.
 
 ---
 
@@ -266,7 +284,7 @@ Before pressing record:
 | Goal gap | 1:41 ahead | Dashboard [1:30], Race Prediction [3:10] |
 | Days until race | 87 | Dashboard [1:30] |
 | Week 8 ACWR spike | 1.337 | Dashboard [1:30] |
-| March 8 activity | HR 157 vs ceiling 145 | Activity Intelligence [2:20] |
+| March 8 activity | HR 157 vs ceiling 145 | Activity Intelligence [2:10] |
 | Weekly brief key signal | Fitness (CTL 59.3) declining | Weekly Brief [3:55] |
 
 ---
