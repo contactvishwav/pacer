@@ -266,18 +266,6 @@ Every entity in the schema is already scoped by `athleteId`. The multi-user exte
 
 The architecture separates ingestion from intelligence. The six coaching engines read from Prisma tables regardless of how data arrived — from the seed script or from a Strava import pipeline. Wiring up Strava OAuth, the activities endpoint, stream fetching, and rate-limit handling is real engineering work but it is plumbing, not intelligence. The Strava API also introduces review friction: OAuth setup, rate-limit windows, and data shape variability that depends on what the reviewer has actually run. The generated training block solves the reviewer-reliability problem directly. Strava is an additive ingestion path, not a prerequisite.
 
-### HRV and Sleep Integration
-
-ACWR provides a reasonable recovery-status proxy from training load data alone. HRV and sleep quality — sourced from Garmin Connect, Apple Health, or Oura — would meaningfully improve the injury-risk signal by distinguishing "load is high because training is progressing" from "load is high and the athlete is also recovering poorly." This is the highest-value intelligence extension on the list. It was cut because it requires three separate API integrations, each with their own OAuth flows and data models, before any intelligence improvement is visible. The ACWR signal is a principled approximation that is honest about what it measures.
-
-### Training Plan Generation
-
-The coach can advise on execution quality and weekly priorities, but it does not generate a structured training plan — a periodized week-by-week schedule with progressive load targets, workout type ratios, and recovery constraints. Plan generation requires building a progression model on top of the intelligence stack, handling athlete-specific constraints (time per week, available equipment, injury history), and managing the coaching liability of prescribing specific workouts to athletes whose physiology and context you cannot fully know. This is a distinct product layer above the current intelligence stack and carries meaningful product and legal complexity. The current weekly brief — what you did last week, what to do this week, and what signal matters most — is a deliberate scoping of coaching value that avoids that complexity while still delivering actionable guidance.
-
-### Matched Activity Comparison and Physiological Drift Detection
-
-This would have been a seventh intelligence dimension: comparing heart rate at a given pace across comparable workouts over time to detect whether aerobic fitness is improving (same pace, lower HR) or declining. It is one of the most actionable signals you can give an endurance athlete and Strava already has all the required data. It was cut for time — the six shipped dimensions reached the limit of what could be implemented with the depth this submission required. It is the first addition on the extension roadmap.
-
 ### Background Jobs and Queue Infrastructure
 
 Historical imports, weekly brief delivery, and long-running data sync operations would eventually require background job infrastructure — queues, retries, exponential backoff, dead-letter handling, and job status visibility. The current seeded review path is deterministic and synchronous, so none of this is needed for the vertical slice. Adding a job queue before proving the intelligence approach works would be premature infrastructure. This is a deployment and reliability concern, not a coaching concern.
@@ -454,39 +442,39 @@ The current slice proves the intelligence layer works: six deterministic engines
 
 ---
 
-### 4. Recovery-Aware Coaching
+### 4. Physiological Drift and Adaptation Detection
 
-**What to build:** Integration of HRV, resting HR, sleep quality, and subjective fatigue via Garmin Connect OAuth, Apple HealthKit authorized sync, or similar user-consented data connections. Feed these signals into the ACWR interpretation and the weekly brief prescription.
+**What to build:** A drift detection engine that compares heart rate at a given pace — and pace at a given heart rate — across comparable workouts over time. Detect whether aerobic efficiency is improving (same pace, lower HR over successive weeks), stable, or declining. Surface this as a seventh intelligence dimension alongside ACWR and phase detection.
 
-**Why users need it:** ACWR detects load spikes but cannot distinguish "high load, well recovered" from "high load, poorly recovered." A runner who slept four hours needs different coaching than a runner with the same ACWR and eight hours of sleep. Recovery-aware coaching is the highest-value intelligence extension available without collecting new workout data.
+**Why users need it:** CTL, ATL, and ACWR track training load. Drift detection tracks whether that load is producing adaptation. An athlete whose easy-run pace improves 15 seconds per kilometer at the same heart rate over 8 weeks is getting fitter in a way no current signal captures. It is one of the most actionable signals you can give an endurance athlete — Strava already collects all the required data — and it turns Pacer from load management into adaptation tracking. This was the seventh intelligence dimension on the original design list and was cut because six dimensions built with depth was a better submission than seven built shallowly.
 
-**Why it comes after the normalized signal layer:** Recovery signals from different providers need the normalization abstraction to reach the coaching engines consistently. Without it, Garmin HRV and Apple HRV require separate conditional code paths throughout the intelligence layer — exactly the structural coupling the abstraction is designed to prevent.
+**Why it comes after ingestion and recovery:** Drift detection requires a sufficient history of comparable workouts at similar effort levels. The 12-week seeded block can demonstrate the concept, but meaningful drift signals require real longitudinal data across months. Recovery signals from HRV and sleep also help distinguish genuine fitness improvement from effort-level variability in the comparison dataset.
 
-**Technical complexity added:** Provider OAuth flows, daily recovery data ingestion and aggregation, cross-signal correlation logic between ACWR and recovery indicators, and UI for displaying recovery context alongside training load signals.
+**Technical complexity added:** Workout comparability logic — matching similar-effort sessions across weeks by effort zone and terrain — regression or EMA-based drift calculation, and a new intelligence engine integrated into the context builder. This is the highest-complexity next intelligence dimension and the one most likely to differentiate Pacer at the product level.
 
 ---
 
-### 5. Physiological Drift and Adaptation Detection
+### 5. Recovery-Aware Coaching via HRV and Sleep Integration
 
-**What to build:** A drift detection engine that compares heart rate at a given pace and pace at a given heart rate across comparable workouts over time. Surface whether aerobic efficiency is improving, stable, or declining as a new intelligence dimension alongside ACWR and phase detection.
+**What to build:** Integration of HRV, resting heart rate, sleep quality, and subjective fatigue via Garmin Connect OAuth, Apple HealthKit, or Oura's authorized API. Feed these signals into the ACWR workload-risk interpretation and the weekly brief prescription, distinguishing "load is high because training is progressing" from "load is high and the athlete is also recovering poorly."
 
-**Why users need it:** CTL, ATL, and ACWR track training load. Drift detection tracks whether that load is producing adaptation. An athlete whose easy-run pace improves 15 seconds per kilometer at the same heart rate over eight weeks is getting fitter in a way no current signal captures. This is the difference between load management and adaptation coaching.
+**Why users need it:** ACWR detects load spikes but cannot distinguish recovery state. A runner with ACWR 1.3 who slept eight hours and has good HRV needs different coaching than a runner with ACWR 1.3 who slept four hours and has suppressed HRV. The current ACWR signal is a principled approximation that is honest about what it measures — recovery-aware coaching is the highest-value intelligence extension because it improves the accuracy of the existing risk signal without requiring new workout tracking. It was cut because it requires three separate API integrations, each with their own OAuth flows and data models, before any intelligence improvement is visible.
 
-**Why it comes after ingestion and recovery:** Drift detection requires a sufficient history of comparable workouts at similar effort levels. The seeded 12-week block can demonstrate the concept, but meaningful drift signals require real longitudinal data across months and recovery context to control for fatigue when comparing sessions.
+**Why it comes after the normalized signal layer:** Recovery signals from Garmin, Apple Health, and Oura arrive in different formats and cadences. The normalized AthleteSignal abstraction (item 3) is the prerequisite that lets all three feed the same coaching model without provider-specific conditionals throughout the intelligence engines.
 
-**Technical complexity added:** Workout comparability logic (matching similar-effort sessions across weeks with effort-level normalization), regression or EMA-based drift calculation, and a new intelligence engine integrated into `buildAthleteIntelligenceContext`. This is the highest-complexity next intelligence dimension and the one most likely to differentiate Pacer at the product level.
+**Technical complexity added:** Provider OAuth flows, daily recovery data ingestion and aggregation (HRV is a morning measurement, sleep data arrives with a lag), cross-signal correlation logic between training load and recovery indicators, and UI for displaying recovery context alongside the ACWR zone bar.
 
 ---
 
 ### 6. Guardrailed Training-Plan Generation
 
-**What to build:** Constrained plan generation that produces a periodized week-by-week schedule respecting progressive overload limits, mandatory recovery weeks, workout-type distribution ratios, race-date taper constraints, ACWR gates that block load increases when workload risk is elevated, and user schedule constraints (available days per week, time per session).
+**What to build:** Constrained plan generation that produces a periodized week-by-week schedule respecting progressive overload limits, mandatory recovery weeks, workout-type distribution ratios, race-date taper constraints, ACWR gates that block load increases when workload risk is elevated, and user schedule constraints (available days per week, time per session, equipment access).
 
-**Why users need it:** The current coach advises on an existing plan. Many athletes do not have a structured plan — they need one built for them. Plan generation closes the gap between reactive coaching (what did last week mean?) and proactive coaching (what should I do for the next 10 weeks?).
+**Why users need it:** The current coach advises on an existing plan. Many athletes do not have a structured plan — they need one built for them, not just commentary on what they already did. Plan generation closes the gap between reactive coaching (what did last week mean?) and proactive coaching (what should I do for the next 12 weeks?). The current weekly brief — what you did last week and what to do this week — is a deliberate scoping of this space that avoids the complexity while proving the underlying signal quality is good enough to support it.
 
-**Why it comes after recovery-aware coaching:** Plan generation quality depends on accurate fitness, fatigue, and recovery signals. A plan generated without recovery context might prescribe a hard workout on a day the athlete is deeply fatigued. Recovery awareness is the prerequisite for safe prescription generation.
+**Why it comes after recovery-aware coaching:** Plan generation quality depends on accurate fitness, fatigue, and recovery signals. A plan generated without recovery context might prescribe a hard workout on a day the athlete is deeply fatigued. Recovery awareness is the prerequisite for safe prescription generation. Plan generation also carries meaningful coaching liability — every prescribed workout needs appropriate uncertainty framing and professional consultation guidance — which requires the product trust layer (memory controls, health-advice boundary enforcement) to be solid first.
 
-**Technical complexity added:** Progression logic, constraint satisfaction for user schedule, ACWR simulation to predict future workload risk from a proposed plan, and careful product framing around coaching liability. Plan generation carries more coaching responsibility than analysis — every prescription needs appropriate uncertainty and professional consultation framing.
+**Technical complexity added:** Progression logic, constraint satisfaction for user schedule and equipment, ACWR simulation to predict future workload risk from a proposed plan, and careful product framing around coaching liability. This is a distinct product layer above the current intelligence stack.
 
 ---
 
