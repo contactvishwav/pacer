@@ -256,7 +256,7 @@ Pacer is a finished vertical slice across six intelligence dimensions, not a fin
 
 ### Native Mobile App
 
-The web application is fully responsive. A native iOS or Android app would improve the experience for athletes who primarily track on their phones — but it would add a separate build target, a separate deployment pipeline, and platform-specific constraints without changing what the intelligence engines compute. The coaching value of Pacer is in the computation layer, not the rendering layer. This is an engagement and distribution decision, not an intelligence decision.
+The web application is fully responsive and functional on mobile browsers. A native iOS or Android app would not change what the intelligence engines compute — the coaching state, ACWR signals, race prediction, and weekly brief are identical regardless of rendering surface. The functional difference is zero. The difference is visual and ergonomic: a 375px phone viewport makes it genuinely hard to present multi-card coaching dashboards, confidence interval range bars, and activity intelligence panels in a way that feels designed rather than compressed. The dashboard was built for the information density a coaching product requires, and that density reads best on a larger screen. A native app would allow surface-specific layout decisions — a bottom-tab coach interface, a glanceable widget for ACWR and phase, swipe-through activity cards — that a responsive web layout cannot replicate without compromising the desktop experience. This is a rendering and distribution decision, not an intelligence decision. The computation layer requires no changes.
 
 ### Multi-User Authentication
 
